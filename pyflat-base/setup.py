@@ -1,7 +1,7 @@
 '''
 setup.py - a setup script
 
-Copyright (C) 2022 Juan ROJAS
+Copyright (C) 2023 Juan ROJAS
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
@@ -30,7 +30,7 @@ setuptools.setup(
     platforms='any',
     packages=setuptools.find_packages(),
     classifiers=[
-            'Development Status :: 2 - Pre-Alpha',
+            'Development Status :: 4 - Beta',
             'Intended Audience :: Developers',
             'Intended Audience :: Information Technology',
             'Intended Audience :: Science/Research',
@@ -38,7 +38,6 @@ setuptools.setup(
             'Natural Language :: English',
             'Operating System :: OS Independent',
             'Programming Language :: Python :: 3',
-            'Programming Language :: Python :: Implementation :: PyPy',
             'Topic :: Scientific/Engineering',
             'Topic :: Software Development :: Pre-processors',
         ],
