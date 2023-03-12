@@ -41,6 +41,6 @@ setuptools.setup(
             'Topic :: Scientific/Engineering',
             'Topic :: Software Development :: Pre-processors',
         ],
-    python_requires='>=3.6',
-    install_requires=["importlib","json","logging","pandas","re","typeguard","typing"]
+    python_requires='>=3.9',
+    install_requires=["pandas","re","typeguard"]
 )
