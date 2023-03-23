@@ -31,7 +31,7 @@ setuptools.setup(
     version="1.0.0",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url='https://github.com/JuanARojasA/pyflat',
+    url='https://github.com/JuanARojasA/dataflat',
     author="Juan Rojas",
     author_email="jarojasa97@gmail.com",
     license='Apache License 2.0',
