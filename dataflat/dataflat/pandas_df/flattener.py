@@ -1,5 +1,5 @@
 '''
-pandas_dataframe/processor.py - The processor script for pandas dataframes flattening process
+pandas_df/flattener.py - The processor script for pandas dataframes flattening process
 
 Copyright (C) 2023 Juan ROJAS
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -22,8 +22,7 @@ from typeguard import typechecked
 from typing import List
 from dataflat.commons import init_logger
 from dataflat.exceptions import FlatteningException
-from dataflat.dictionary.processor import CustomFlattener as DictionaryCustomFlattener
-
+from dataflat.dictionary.flattener import CustomFlattener as DictionaryCustomFlattener
 
 logger = init_logger(__name__)
 

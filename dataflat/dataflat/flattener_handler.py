@@ -20,33 +20,33 @@ Authors:
 import enum
 from importlib import import_module
 from dataflat.commons import init_logger
-from typing import Type
+from typing import Literal
 from typeguard import typechecked
 
 logger = init_logger(__name__)
 
-class Flattener(enum.Enum): # Possible values
+class Options(enum.Enum): # Possible values
     DICTIONARY = 1
     PANDAS_DF = 2
     SPARK_DF = 3
 
 @typechecked
-class FlattenerHandler():
+class Flattener():
     def __init__(self):
         logger.info("Flattener Handler initiated")
 
-    def pre_processor(self, flattener:Type[Flattener] = Flattener.DICTIONARY):
+    def handler(self, custom_flattener: Literal[Options.DICTIONARY, Options.PANDAS_DF, Options.SPARK_DF]):
         """Returns relevant flattener
 
         Parameters
         ----------
-        flattener_type : Type[Flattener], default is DICTIONARY
+        custom_flattener: Type[Options]
             Specify the Flattener class to use.
 
         Returns
         -------
         class -- CustomFlattener object 
         """
-        pre_processor = "pyflat.{}.flattener".format(flattener.name.lower())
+        flattener = "dataflat.{}.flattener".format(custom_flattener.name.lower())
 
-        return getattr(import_module(pre_processor), 'CustomFlattener')
+        return getattr(import_module(flattener), 'CustomFlattener')

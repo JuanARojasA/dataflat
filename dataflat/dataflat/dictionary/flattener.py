@@ -1,5 +1,5 @@
 '''
-dictionary/processor.py - The processor script for dictionaries flattening process
+dictionary/flattener.py - The processor script for dictionaries flattening process
 
 Copyright (C) 2023 Juan ROJAS
 Licensed under the Apache License, Version 2.0 (the "License");

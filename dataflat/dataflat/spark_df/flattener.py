@@ -1,5 +1,5 @@
 '''
-pyspark_dataframe/processor.py - The processor script for pyspark dataframes flattening process
+spark_df/flattener.py- The processor script for pyspark dataframes flattening process
 
 Copyright (C) 2023 Juan ROJAS
 Licensed under the Apache License, Version 2.0 (the "License");
