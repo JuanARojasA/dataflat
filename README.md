@@ -34,5 +34,5 @@ transform(dataframe, id_key, black_list, dataframe_name, chunk_size, to_snake_ca
 
 # Instantiate a Spark Dataframe Flattener
 flattener_sp = Flattener().handler(Options.SPARK_DF)
-transform(dataframe:DataFrame, id_key, black_list, dataframe_name, to_snake_case, replace_dots)
+transform(dataframe, id_key, black_list, dataframe_name, to_snake_case, replace_dots)
 ```
