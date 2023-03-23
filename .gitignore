@@ -1,2 +1,6 @@
 *.zip
 *.DS_Store
+bdist.macosx*
+dist*
+lib
+dataflat.egg-info
