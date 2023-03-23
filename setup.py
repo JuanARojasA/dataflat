@@ -18,11 +18,19 @@ Authors:
 '''
 
 import setuptools
+from codecs import open
+from os import path
+
+PARENT = path.abspath(path.dirname(__file__))
+
+with open(path.join(PARENT, 'README.md'), encoding='utf-8') as f:
+    long_description = f.read()
  
 setuptools.setup(
     name="dataflat",
     version="1.0.0",
-    description="A flattening library for nested dictionaries and dataframes",
+    long_description=long_description,
+    long_description_content_type="text/markdown",
     url='https://github.com/JuanARojasA/pyflat',
     author="Juan Rojas",
     author_email="jarojasa97@gmail.com",
