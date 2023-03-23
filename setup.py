@@ -49,7 +49,7 @@ setuptools.setup(
             'Topic :: Scientific/Engineering',
             'Topic :: Software Development :: Libraries',
             'Topic :: Software Development :: Libraries :: Python Modules',
-            'Topic :: Software Development :: Pre-processors',
+            'Topic :: Software Development :: Pre-processors'
         ],
     python_requires='>=3.9',
     install_requires=["pandas","typeguard"],
