@@ -52,5 +52,6 @@ setuptools.setup(
             'Topic :: Software Development :: Pre-processors',
         ],
     python_requires='>=3.9',
-    install_requires=["pandas","typeguard"]
+    install_requires=["pandas","typeguard"],
+    include_package_data=True
 )
