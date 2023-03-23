@@ -21,9 +21,9 @@ import setuptools
 from codecs import open
 from os import path
 
-PARENT = path.abspath(path.dirname(__file__))
+PATH = path.abspath(path.dirname(__file__))
 
-with open(path.join(PARENT, 'README.md'), encoding='utf-8') as f:
+with open(path.join(PATH, 'README.md'), encoding='utf-8') as f:
     long_description = f.read()
  
 setuptools.setup(
