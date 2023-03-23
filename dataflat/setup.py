@@ -20,7 +20,7 @@ Authors:
 import setuptools
  
 setuptools.setup(
-    name="pyflat",
+    name="dataflat",
     version="1.0.0",
     description="A flattening library for nested dictionaries and dataframes",
     url='https://github.com/JuanARojasA/pyflat',
@@ -39,8 +39,10 @@ setuptools.setup(
             'Operating System :: OS Independent',
             'Programming Language :: Python :: 3',
             'Topic :: Scientific/Engineering',
+            'Topic :: Software Development :: Libraries',
+            'Topic :: Software Development :: Libraries :: Python Modules'
             'Topic :: Software Development :: Pre-processors',
         ],
     python_requires='>=3.9',
-    install_requires=["pandas","re","typeguard"]
+    install_requires=["pandas","typeguard"]
 )

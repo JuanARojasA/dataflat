@@ -19,7 +19,7 @@ Authors:
 
 import enum
 from importlib import import_module
-from pyflat.commons import init_logger
+from dataflat.commons import init_logger
 from typing import Type
 from typeguard import typechecked
 
@@ -47,6 +47,6 @@ class FlattenerHandler():
         -------
         class -- CustomFlattener object 
         """
-        pre_processor = "pyflat.{}.processing".format(flattener.name.lower())
+        pre_processor = "pyflat.{}.flattener".format(flattener.name.lower())
 
         return getattr(import_module(pre_processor), 'CustomFlattener')

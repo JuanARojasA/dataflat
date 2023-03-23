@@ -21,8 +21,8 @@ import json
 import re
 from typeguard import typechecked
 from typing import List
-from pyflat.commons import init_logger
-from pyflat.exceptions import FlatteningException
+from dataflat.commons import init_logger
+from dataflat.exceptions import FlatteningException
 from pyspark.sql.dataframe import DataFrame
 from pyspark.sql.functions import posexplode
 
@@ -34,15 +34,19 @@ class CustomFlattener():
         logger.info("CustomFlattener for PySpark Dataframes has been initiated")
 
 
-    def _to_snake_case(self, dataframe:DataFrame, replace_dots:bool):
-        """Receive a PySpark Dataframe and return a snake_case columns like, dataframe.
+    def _process_column_name(self, dataframe:DataFrame, to_snake_case:bool, replace_dots:bool):
+        """Receive a Spark Dataframe and return a snake_case columns like dataframe.
         If replace_dots is True, then all the subcolumns like "Column.SubColumn" will be
-        renamed as "column_sub_column"; if False then "column.sub_column"
+        renamed as "Column_SubColumn".
 
         Parameters
         ----------
         dataframe: pyspark.Dataframe
+            The Spark Dataframe to rename each column to snake_case and replace dots with underscores.
+        to_snake_case: bool
+            If True rename the column to Snake Case column name like.
         replace_dots: bool
+            If True replace the column name dots with underscores.
 
         Returns
         -------
@@ -50,38 +54,40 @@ class CustomFlattener():
         """
         pattern = re.compile(r'(?<!^)(?=[A-Z])')
         for col in dataframe.columns:
-            sc_col = pattern.sub('_', col).lower().replace("__", "_").replace("._", ".")
+            if to_snake_case:
+                sc_col = pattern.sub('_', col).lower().replace("__", "_").replace("._", ".")
             if replace_dots:
                 sc_col = sc_col.replace(".", "_")
             dataframe = dataframe.withColumnRenamed(col, sc_col)
         return dataframe
 
-    def _get_schema_struct(self, dataframe_schema:dict, id_key:str, black_list:List[str], dataframe_name:str, ref:str = "", named_struct:dict = {}):
-        """Receive a dictionary with a PySpark Dataframe Schema, and return 
-        a dictionary[str, str] with the named_struct expression required
+    def _get_schema_struct(self, dataframe_schema:dict, id_key:str, black_list:List[str], dataframe_name:str, _ref:str = "", named_struct:dict = {}):
+        """Receive Spark Dataframe Schema in dictionary format, and return 
+        a dictionary[str, str] with the all required named_struct expressions
         to flatten de Dataframe.
-        The number of expressions on returned dictionary will depends on the number
-        of nested arrays present on the input dataframe schema, if none, only
-        one expression will be returned.
 
         Parameters
         ----------
-        dataframe_schema : dict
-        id_key : str
-        black_list : List[str]
-        dataframe_name : str
-        ref : str, default is ""
-            This value is not required to assing, will be used internaly to assing
-            the column names for subcolumns.
+        dataframe_schema: dict
+            A dictionary with the Dataframe schema.
+        id_key: str
+            The id key to be used as reference to the parent dataframe.
+        black_list: List[str]
+            A list of columns to ignore and not to add to the resulting flattened dictionary.
+        dataframe_name: str
+            A reference name for the dataframe, used to difference each
+            resulting dataframe in the named_struct return.
         named_struct : dict, default is {}
 
         Returns
         -------
         named_struct: dict[str, str]
+            A dictionary with all the named_struct expressions to flatten the
+            provided Dataframe schema.
         """
         for field in dataframe_schema['fields']:
             if field['name'] not in black_list:
-                field_name = ref + field['name']
+                field_name = _ref + field['name']
                 if type(field['type']) is dict:
                     if field['type']['type'] == "array":
                         try:
@@ -102,20 +108,25 @@ class CustomFlattener():
     def _processor(self, dataframe:DataFrame, id_key:str, black_list:List[str], dataframe_name:str):
         """Receive a pyspark.Dataframe and returns a Dictionary[str, pyspark.DataFrame]
         with all the processed dataframes.
-        The ammount of dataframes on returned dictionary will depends on the number
-        of nested arrays present on the input dataframe, if none, only one Dataframe
-        will be returned.
 
         Parameters
         ----------
-        dataframe_schema : dict
-        id_key : bool
-        black_list : List[str]
-        dataframe_name : str
+        dataframe: pyspark.DataFrame
+            A Dataframe to be flattened
+        id_key: str
+            The id key to be used as reference to the parent dataframe.
+        black_list: List[str]
+            A list of columns to ignore and not to add to the resulting flattened dictionary.
+        dataframe_name: str
+            A reference name for the dataframe, used to difference each
+            resulting dataframe in the named_struct return.
 
         Returns
         -------
         processed_data : dict[str, pyspark.DataFrame]
+            A dictionary with all the resulting Dataframes from the flattening process.
+            Each ArrayType column will be flattened and added as a Dataframe inside the
+            processed_data return.
         """
         processed_data = {}
         schema = json.loads(dataframe.schema.json())
@@ -136,35 +147,43 @@ class CustomFlattener():
                 processed_data[df_name] = aux_df
         return processed_data
 
-    def transform(self, dataframe:DataFrame, id_key:str, black_list:List[str] = [], dataframe_name:str = "df", snake_case_cols:bool = False, replace_dots:bool = False):
+    def transform(self, dataframe:DataFrame, id_key:str, black_list:List[str] = [], dataframe_name:str = "df", to_snake_case:bool = False, replace_dots:bool = False):
         """Receive a pyspark.Dataframe and returns a Dictionary[str, pyspark.DataFrame]
         with all the processed dataframes.
         The ammount of dataframes on returned dictionary will depends on the number
-        of nested arrays present on the input dataframe, if none, only one Dataframe
-        will be returned.
-        If snake_case_cols is set to True, the column names on every processed Dataframe
+        of ArrayType columns present on the input dataframe.
+        If to_snake_case is set True, the column names on every processed Dataframe
         will be casted to snake_case.
         If replace_docts is set to True, all the dots present on a column name will
-        be replaces such as follow example, "Column.SubColumn" -> "column_sub_column".
+        be replaces such as follow example, "Column.SubColumn" -> "Column_SubColumn".
 
         Parameters
         ----------
-        dataframe_schema : dict
-        id_key : bool
-        black_list : List[str], default is []
-        dataframe_name : str, default is "df
-        snake_case_cols : bool, default is False
-        replace_dots : bool, default is False
+        dataframe: pyspark.DataFrame
+            A Dataframe to be flattened
+        id_key: str
+            The id key to be used as reference to the parent dataframe.
+        black_list: List[str]
+            A list of columns to ignore and not to add to the resulting flattened dictionary.
+        dataframe_name: str
+            A reference name for the dataframe, used to difference each
+            resulting dataframe in the named_struct return.
+        to_snake_case: bool
+            If True rename the column to Snake Case column name like.
+        replace_dots: bool
+            If True replace the column name dots with underscores.
 
         Returns
         -------
         processed_data : dict[str, pyspark.DataFrame]
+            A dictionary with all the resulting Dataframes from the flattening process.
+            Each ArrayType column will be flattened and added as a Dataframe inside the
+            processed_data return.
         """
         if len(dataframe.head(1)) > 0:
             raise FlatteningException("The provided dataframe is empty.")
         processed_data = {}
         processed_data = self._processor(dataframe, id_key, black_list, dataframe_name)
-        if snake_case_cols:
-            for processed_df_name, processed_df in processed_data.items():
-                processed_data[processed_df_name] = self._to_snake_case(processed_df, replace_dots)
+        for processed_df_name, processed_df in processed_data.items():
+            processed_data[processed_df_name] = self._process_column_name(processed_df, to_snake_case, replace_dots)
         return processed_data
