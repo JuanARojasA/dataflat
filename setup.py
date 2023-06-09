@@ -28,7 +28,7 @@ with open(path.join(PATH, 'README.md'), encoding='utf-8') as f:
  
 setuptools.setup(
     name="dataflat",
-    version="1.0.2",
+    version="1.0.3",
     long_description=long_description,
     long_description_content_type="text/markdown",
     url='https://github.com/JuanARojasA/dataflat',

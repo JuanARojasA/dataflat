@@ -33,13 +33,13 @@ class CustomFlattener():
     def __init__(self):
         logger.info("CustomFlattener for PySpark Dataframes has been initiated")
 
-    def _to_snake_case(process_col:bool, col_name:str):
+    def _to_snake_case(self, process_col:bool, col_name:str):
         if process_col:
             pattern = re.compile(r'(?<!^)(?=[A-Z])')
             return pattern.sub('_', col_name).lower().replace("__", "_").replace("._", ".")
         return col_name
     
-    def _replace_dots(process_col:bool, col_name:str):
+    def _replace_dots(self, process_col:bool, col_name:str):
         if process_col:
             return col_name.replace(".", "_")
         return col_name
@@ -65,7 +65,8 @@ class CustomFlattener():
         for col in dataframe.columns:
             sc_col = self._to_snake_case(to_snake_case, col)
             sc_col = self._replace_dots(replace_dots, sc_col)
-            dataframe = dataframe.withColumnRenamed(col, sc_col)
+            if to_snake_case | replace_dots:
+                dataframe = dataframe.withColumnRenamed(col, sc_col)
         return dataframe
 
     def _get_schema_struct(self, dataframe_schema:dict, id_key:str, black_list:List[str], dataframe_name:str, _ref:str = "", named_struct:dict = {}):
@@ -137,7 +138,7 @@ class CustomFlattener():
         """
         processed_data = {}
         schema = json.loads(dataframe.schema.json())
-        ns = self._get_schema_struct(schema, id_key, black_list, dataframe_name, ns={})
+        ns = self._get_schema_struct(schema, id_key, black_list, dataframe_name, _ref="", named_struct={})
         for df_name, struct in ns.items():
             selectExpr = f"named_struct( {struct[:-1]} ) as Item"
             aux_df = dataframe.selectExpr( selectExpr ).select("Item.*")
