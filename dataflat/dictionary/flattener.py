@@ -19,7 +19,7 @@ Authors:
 
 import re
 from typeguard import typechecked
-from typing import Tuple, List, Union
+from typing import Tuple, List, Union, Any
 from dataflat.commons import init_logger
 from dataflat.exceptions import FlatteningException
 
@@ -198,7 +198,7 @@ class CustomFlattener():
         return flat_dict, processed_data
 
 
-    def transform(self, dictionary:dict, id_key:str, black_list:List[str] = [], dict_name:str = "dct", to_snake_case:bool = False, replace_dots:bool = False) -> dict:
+    def transform(self, dictionary:dict, id_key:Any, black_list:List[str] = [], dict_name:str = "dct", to_snake_case:bool = False, replace_dots:bool = False) -> dict:
         """Receive a dictionary to flatten and a id_key used as 
         reference key under all the resulting flattened dictionaries.
         Receive a dictionary and an id_key to start processing.

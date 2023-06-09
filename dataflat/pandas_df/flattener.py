@@ -32,7 +32,7 @@ class CustomFlattener():
         logger.info("CustomFlattener for Pandas Dataframes has been initiated")
 
 
-    def transform(self, dataframe:pd.DataFrame, id_key:str, black_list:List[str] = [], dataframe_name:str = "df", chunk_size:int = 500, to_snake_case:bool = False, replace_dots:bool = False) -> dict:
+    def transform(self, dataframe:pd.DataFrame, id_key:str, black_list:List[str] = [], dataframe_name:str = "df", to_snake_case:bool = False, replace_dots:bool = False, chunk_size:int = 500) -> dict:
         """Receive a pandas Dataframe, and return a dictionary with the
         flattenend pandas Dataframes.
         If a black_list is provided then all the column names inside the black_list will
@@ -58,14 +58,14 @@ class CustomFlattener():
         dataframe_name: str, (default 'df')
             A reference name for the dataframe, used to difference each
             resulting dataframe in the processed_dataframes return.
-        chunk_size: int, (default 500)
-            The chunk size used to process the dataframe in batches. 
-            i.e. If dataframe size is 2000, and chunk_size is 500,
-            then the dataframe will be processed in 4 batches.
         to_snake_case: bool
             If True process the column name to Snake Case.
         replace_dots: bool
             If True replace the column name dots with underscores.
+        chunk_size: int, (default 500)
+            The chunk size used to process the dataframe in batches. 
+            i.e. If dataframe size is 2000, and chunk_size is 500,
+            then the dataframe will be processed in 4 batches.
 
         Returns
         -------
