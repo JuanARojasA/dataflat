@@ -33,6 +33,16 @@ class CustomFlattener():
     def __init__(self):
         logger.info("CustomFlattener for PySpark Dataframes has been initiated")
 
+    def _to_snake_case(process_col:bool, col_name:str):
+        if process_col:
+            pattern = re.compile(r'(?<!^)(?=[A-Z])')
+            return pattern.sub('_', col_name).lower().replace("__", "_").replace("._", ".")
+        return col_name
+    
+    def _replace_dots(process_col:bool, col_name:str):
+        if process_col:
+            return col_name.replace(".", "_")
+        return col_name
 
     def _process_column_name(self, dataframe:DataFrame, to_snake_case:bool, replace_dots:bool):
         """Receive a Spark Dataframe and return a snake_case columns like dataframe.
@@ -52,12 +62,9 @@ class CustomFlattener():
         -------
         dataframe: pyspark.Dataframe
         """
-        pattern = re.compile(r'(?<!^)(?=[A-Z])')
         for col in dataframe.columns:
-            if to_snake_case:
-                sc_col = pattern.sub('_', col).lower().replace("__", "_").replace("._", ".")
-            if replace_dots:
-                sc_col = sc_col.replace(".", "_")
+            sc_col = self._to_snake_case(to_snake_case, col)
+            sc_col = self._replace_dots(replace_dots, sc_col)
             dataframe = dataframe.withColumnRenamed(col, sc_col)
         return dataframe
 
@@ -180,7 +187,7 @@ class CustomFlattener():
             Each ArrayType column will be flattened and added as a Dataframe inside the
             processed_data return.
         """
-        if len(dataframe.head(1)) > 0:
+        if len(dataframe.head(1)) == 0:
             raise FlatteningException("The provided dataframe is empty.")
         processed_data = {}
         processed_data = self._processor(dataframe, id_key, black_list, dataframe_name)
