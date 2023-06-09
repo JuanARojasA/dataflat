@@ -49,4 +49,4 @@ class Flattener():
         """
         flattener = "dataflat.{}.flattener".format(custom_flattener.name.lower())
 
-        return getattr(import_module(flattener), 'CustomFlattener')
+        return getattr(import_module(flattener), 'CustomFlattener')()
