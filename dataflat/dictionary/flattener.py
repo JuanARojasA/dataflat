@@ -1,5 +1,5 @@
 '''
-dictionary/flattener.py - The processor script for dictionaries flattening process
+dataflat/dictionary/flattener.py - The processor script for dictionaries flattening process
 
 Copyright (C) 2023 Juan ROJAS
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -19,7 +19,7 @@ Authors:
 
 import re
 from typeguard import typechecked
-from typing import Tuple, List, Union, Any
+from typing import Tuple, List, Any
 from dataflat.commons import init_logger
 from dataflat.exceptions import FlatteningException
 
@@ -28,215 +28,161 @@ logger = init_logger(__name__)
 
 @typechecked
 class CustomFlattener():
-    def __init__(self):
+    def __init__(self, case_translator, replace_dots):
         logger.info("CustomFlattener for Python Dictionaries has been initiated")
+        self.case_translator = case_translator
+        self.reference_separator = "_" if replace_dots else "."
 
 
-    def _process_key_name(self, string:str, to_snake_case:bool, replace_dots:bool) -> str:
-        """Receive an input string and process it to Snake Case, and
-        replace the dots with underscores.
-
+    def _replace_dots(self, string:str):
+        """Receive a String, and replace the '.' in name with '_'
         Parameters
         ----------
         string: str
-            The String to be processed.
-        to_snake_case: bool
-            If True process the string to Snake Case.
-        replace_dots: bool
-            If True process the string and replace dots with underscores.
-
+            The string to be processed.
         Returns
         -------
-        string: str
-            The processed string.
+        replaced_string: str
         """
-        if to_snake_case:
-            pattern = re.compile(r'(?<!^)(?=[A-Z])')
-            string = pattern.sub('_', string).lower().replace("__", "_").replace("._", ".")
-        if replace_dots:
-            string = string.replace(".", "_")
-        return 
+        if self.reference_separator != ".":
+            string = string.replace(".", self.reference_separator)
+            string = re.sub(f"{self.reference_separator}+", self.reference_separator, string)
+        return string
 
 
-    def _nested_processor(self, nested_list:Union[List,Tuple], id_key:str, black_list:List[str], dict_name:str, 
-                           dict_ref:str, super_dict_ref_id:List[str], 
-                           processed_data:dict, to_snake_case:bool, replace_dots:bool) -> dict:
-        """Receive a nested list or tuple from a dictionary, execute
-        the flattening process for each element, if the first element is a list or a tuple,
-        then assign an 'id' using the position of each element, if element type is dictionary, then
-        execute the flattening process.
-        Finally return a dictionary with the processed lists as values.
-        All elements in the nested_list must be of the same data type.
-
+    def _insert_child_record(self, processed_data:dict, json_name:str, key_ref:str, value:Any, nested_index:int=None, parent_index:Tuple[str,int]=(None,None)):
+        """Receive a processed_data dictionary and add new key-value pairs to a nested dictionary in processed_data
+        using the json_name and the parent and nested index.
         Parameters
         ----------
-        nested_list: Union[List,Tuple]
-            The nested list of a dictionary to be processed.
-        id_key: str
-            The id key to be used as reference to the parent dictionary.
-        black_list: List[str]
-            A list of keys to ignore and not to add to the resulting flattened dictionary.
-        dict_name: str
-            A reference name for the dictionary, used to difference each
-            resulting dictionary in the processed_data return.
-        dict_ref: str
-            The schema reference location for each key. 
-            i.e. data.user, all the keys under the above reference will be named as data.user.XXXX (i.e. data.user.name)
-        super_dict_ref_id: List[str]
-            A list with the reference to the parent id_key.
-            i.e. [user_id, dda00276-c90f-11ed-afa1-0242ac120002] is the reference for the user.addresses list.
         processed_data: dict
-            A dictionary with all the flattened dictionaries as key-value pairs [str, dict].
-        to_snake_case: bool
-            If True process the key name to Snake Case.
-        replace_dots: bool
-            If True replace the key name dots with underscores.
-
+            The dictionary of processed dictionaries, where the key-value pair will be added
+        json_name: str
+            The processed dictionary name
+        key_ref: str
+            The key name to be added
+        value: Any
+            The value to be added on key_ref
+        nested_index: int
+            If the current key-value was inside a list, this value reference the item position in the list
+        parent_index: Tuple[str, int]
+            Reference to the name and index of the parent dictionary, in case the key-value was a 
+            parameter of a dictionary on list in another list.
         Returns
         -------
         processed_data: dict
-            A dictionary with all the flattened lists as key-value pairs [str, dict].
         """
-        dict_list = []
-        dict_ref = self._process_key_name(dict_ref, to_snake_case, replace_dots)
-        if isinstance(nested_list[0], type(dict)):
-            for nested_dict in nested_list:
-                aux, processed_data = self._processor(nested_dict, id_key, black_list, 
-                                                         dict_name = dict_name, 
-                                                         dict_ref = "", 
-                                                         super_dict_ref_id = super_dict_ref_id, 
-                                                         _is_nested_list = True, 
-                                                         processed_data = processed_data)
-                dict_list.append( aux )
+        if nested_index is not None:
+            if parent_index[1] is not None:
+                parent_index_name = f"{parent_index[0]}{self.reference_separator}index"
+                if processed_data[json_name]:
+                    try:
+                        if processed_data[json_name][parent_index[1]]:
+                            try:
+                                processed_data[json_name][parent_index[1]][nested_index][key_ref] = value
+                            except:
+
+                                processed_data[json_name][parent_index[1]].append({parent_index_name:parent_index[1],key_ref:value})
+                        else:
+                            processed_data[json_name][parent_index[1]] = [{parent_index_name:parent_index[1],key_ref:value}]
+                    except Exception as e:
+                        processed_data[json_name].update({parent_index[1]:[{parent_index_name:parent_index[1],key_ref:value}]})
+                else:
+                    processed_data[json_name] = {}
+                    processed_data[json_name].update({parent_index[1]:[{parent_index_name:parent_index[1],key_ref:value}]})
+            else:
+                try:
+                    processed_data[json_name][nested_index][key_ref] = value
+                except:
+                    if not processed_data[json_name]:
+                        processed_data[json_name] = {}
+                    processed_data[json_name].update({nested_index:{key_ref:value}})
         else:
-            for i in range(len(nested_list)):
-                dict_list.append( {f"{super_dict_ref_id[0]}{id_key}": super_dict_ref_id[1], "id": i+1, f"{dict_ref}": nested_list[i]} )
-        
-        try:
-            processed_data[f"{super_dict_ref_id[0]}{dict_ref}"].extend(dict_list)
-        except:
-            processed_data[f"{super_dict_ref_id[0]}{dict_ref}"] = dict_list
-
+            try:
+                processed_data[json_name][key_ref] = value
+            except:
+                processed_data[json_name] = [{key_ref:value}]
         return processed_data
 
 
-    def _processor(self, dictionary:dict, id_key:str, black_list:List[str], to_snake_case:bool, replace_dots:bool, 
-                   dict_name:str = "", dict_ref:str = "", super_dict_ref_id:List[str] = [], _is_nested_list:bool = False, 
-                   processed_data:dict = {}) -> Tuple[dict, dict]:
-        """Receive a dictionary and iterate over all the keys,
-        if the key.value is a dictionary, then execute a new flattening
-        process over the value, if list, then execute nested_processor,
-        else add the value to the flattened dictionary, using the
-        key reference location on the original dictionary.
-        If a black_list is provided then all the keys inside the black_list will
-        be skipped. Notice that if ['name'] is provided as black list, then 
-        all the 'name' keys will be skipped, even if they are under a nested
-        dictionary or list.
-
-        Parameters
+    def _processor(self, data:Any, json_name:str, ref:str="", processed_data:dict={}, nested_index:int=None, parent_index:Tuple[str,int]=(None,None)):
+        """Receive a List or Dictionary data to be flattened, a black list used to skip the keys of a dictionary, a json_name
+        used as reference in case there are a nested list to be flattened in the process.
         ----------
-        dictionary: dict
-            The dictionary to be flattened.
-        id_key: str
-            The id key to be used as reference to the parent dictionary.
-        black_list: List[str], (default [])
-            A list of keys to ignore and not to add to the resulting flattened dictionary.
-        to_snake_case: bool
-            If True process the key name to Snake Case.
-        replace_dots: bool
-            If True replace the key name dots with underscores.
-        dict_name: str, (default '')
-            A reference name for the dictionary, used to difference each
-            resulting dictionary in the processed_data return.
-        dict_ref: str, (default '')
-            The schema reference location for each key. 
-            i.e. user_data, all the keys under the above reference will be named as user_data.XXXX (i.e. user_data.name)
-        super_dict_ref_id: List[str], default is []
-            A list with the reference to the parent id_key.
-            i.e. [user_id, dda00276-c90f-11ed-afa1-0242ac120002] is the reference for the user.addresses list.
-        processed_data: dict, default is {}
-            A dictionary with all the flattened dictionaries as key-value pairs [str, dict].
-
+        data: Any
+            The dictionary or List to be flattened
+        black_list: List[str]
+            A list of keys to be skipped on flattening process
+        json_name: str
+            The current processed dictionary name
         Returns
         -------
-        flat_dict, processed_data: Tuple[dict, dict]
-            A dictionary with all the flattened dictionaries as key-value pairs [str, dict].
+        processed_data: dict
         """
-        flat_dict = {}
-        if _is_nested_list:
-            flat_dict.update({f"{super_dict_ref_id[0]}{id_key}": super_dict_ref_id[1]})
-        dict_ref += "." if dict_ref != '' else dict_ref
-
-        for key, value in dictionary.items():
-            if key not in black_list:
-                key = self._process_key_name(key, to_snake_case, replace_dots)
-                if (dict_ref == ''):
-                    if dict_name:
-                        dict_ref_id = [f"{dict_name.replace('-', '_')}.{dict_ref}", dictionary[id_key]]
+        processed_data[json_name] = {} if json_name not in processed_data else processed_data[json_name]
+        if isinstance(data, dict):
+            for key, value in data.items():
+                if key not in self.black_list:
+                    key_name = self.case_translator.translate(key)
+                    key_ref = f"{ref}.{key_name}" if ref!="" else key
+                    key_ref = self._replace_dots(key_ref)
+                    if isinstance(value, dict):
+                        self._processor(value, json_name, key_ref, processed_data, nested_index, parent_index)
+                    elif type(value) in (list, tuple):
+                        nested_json_name = self._replace_dots(f"{json_name}.{key_ref}")
+                        self._processor(value, nested_json_name, "", processed_data, nested_index, (json_name, None))
                     else:
-                        dict_ref_id = [dict_ref, dictionary[id_key]]
+                        self._insert_child_record(processed_data, json_name, key_ref, value, nested_index, parent_index)
+        elif type(data) in (list, tuple):
+            if nested_index is not None:
+                parent_index = (parent_index[0], nested_index)
+            for index, item in enumerate(data):
+                if isinstance(item, dict):
+                    self._processor(item, json_name, "", processed_data, index, parent_index)
                 else:
-                    dict_ref_id = super_dict_ref_id
-
-                if type(value) is dict:
-                    aux, processed_data = self._processor(value, id_key, black_list,
-                                                            dict_name = dict_name,
-                                                            dict_ref = f"{dict_ref}{key}",
-                                                            super_dict_ref_id = dict_ref_id,
-                                                            _is_nested_list = False,
-                                                            processed_data = processed_data)
-                    flat_dict.update(aux)
-                elif type(value) in (list, tuple):
-                    if value:
-                        processed_data = self._nested_processor(value, id_key, black_list,
-                                                                  dict_name = dict_name,
-                                                                  dict_ref = f"{dict_ref}{key}",
-                                                                  super_dict_ref_id = dict_ref_id,
-                                                                  processed_data = processed_data)
-                else:
-                    flat_dict.update({f"{dict_ref}{key}": value})
-        return flat_dict, processed_data
+                    processed_data = self._insert_child_record(processed_data, json_name, "value", item, index, parent_index)
+        else:
+            print(f"Non-supported data type: {type(data)} with data {data}")
+        return processed_data
 
 
-    def transform(self, dictionary:dict, id_key:Any, black_list:List[str] = [], dict_name:str = "dct", to_snake_case:bool = False, replace_dots:bool = False) -> dict:
-        """Receive a dictionary to flatten and a id_key used as 
-        reference key under all the resulting flattened dictionaries.
-        Receive a dictionary and an id_key to start processing.
-        If a black_list is provided then all the keys inside the black_list will
-        be skipped. Notice that if ['name'] is provided as black list, then 
-        all the 'name' keys will be skipped, even if they are under a nested
-        dictionary or list.
-        The dict_name will be used to reference each resulting flattened dictionary
-        under the processed_data dictionary returned.
-
-        Parameters
+    def transform(self, json_data, id_key:str, black_list:List[str] = [], json_name:str = "json") -> dict:
+        """Receive a List or Dictionary data to be flattened, a black list used to skip the keys of a dictionary, a json_name
+        used as reference in case there are a nested list to be flattened in the process.
         ----------
-        dictionary: dict
-            The dictionary to be flattened.
+        json_data: Any
+            The dictionary or List to be flattened
         id_key: str
-            The id key to be used as reference to the parent dictionary.
-        black_list: List[str], (default [])
-            A list of keys to ignore and not to add to the resulting flattened dictionary.
-        dict_name : str, (default 'dct')
-            A reference name for the dictionary, used to difference each
-            resulting dictionary in the processed_data return.
-        to_snake_case: bool
-            If True process the key name to Snake Case.
-        replace_dots: bool
-            If True replace the key name dots with underscores.
-
+            The 'id' key name, used to add a reference on nested lists
+        black_list: List[str]
+            A list of keys to be skipped on flattening process
+        json_name: str
+            The json name, used to add a reference key-value on nested lists
         Returns
         -------
-        processed_data : dict
+        processed_data: dict
         """
-        if not id_key:
-            raise FlatteningException("The id_key has not been provided, ensure the value is not an empty string or None.")
-        elif not (id_key in dictionary):
-            raise FlatteningException("The provided id_key does not exist on the dictionary.")
-        elif not ( type(dictionary[id_key]) in (int, float, str) ):
-            raise FlatteningException("The provided id_key must be a str, integer or float.")
-        processed_data = {}
-        flatten_dict, processed_data = self._processor(dictionary, id_key, black_list, dict_name, processed_data=processed_data, 
-                                                       to_snake_case=to_snake_case, replace_dots=replace_dots)
-        processed_data[dict_name] = [flatten_dict]
+        if json_data:
+            raise FlatteningException("The provided dictionary is empty.")
+        elif id_key in json_data:
+            raise FlatteningException(f"The provided id_key={id_key} does not exist in json_data")
+        
+        self.black_list = black_list
+        processed_data = self._processor(json_data, black_list, json_name, processed_data={})
+        for dict_name, flattened_dicts in processed_data.items():
+            print(dict_name)
+            if dict_name != json_name:
+                dict_list = []
+                parent_json_id = self._replace_dots(f"{json_name}{self.reference_separator}index" )
+                for index in flattened_dicts.keys():
+                    if isinstance(flattened_dicts[index], list):
+                        for sub_index, sub_dict in enumerate(flattened_dicts[index]):
+                            sub_dict['index'] = sub_index
+                            sub_dict[parent_json_id] = processed_data[json_name][id_key]
+                            dict_list.append(sub_dict)
+                    else:
+                        flattened_dicts[index]['index'] = index
+                        flattened_dicts[index][parent_json_id] = processed_data[json_name][id_key]
+                        dict_list.append(flattened_dicts[index])
+                processed_data[dict_name] = dict_list
         return processed_data
