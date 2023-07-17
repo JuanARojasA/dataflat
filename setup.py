@@ -28,7 +28,7 @@ with open(path.join(PATH, 'README.md'), encoding='utf-8') as f:
  
 setuptools.setup(
     name="dataflat",
-    version="1.0.6",
+    version="1.0.7",
     long_description=long_description,
     long_description_content_type="text/markdown",
     url='https://github.com/JuanARojasA/dataflat',
@@ -49,7 +49,8 @@ setuptools.setup(
             'Topic :: Scientific/Engineering',
             'Topic :: Software Development :: Libraries',
             'Topic :: Software Development :: Libraries :: Python Modules',
-            'Topic :: Software Development :: Pre-processors'
+            'Topic :: Software Development :: Pre-processors',
+            'Topic :: Utilities'
         ],
     python_requires='>=3.9',
     install_requires=["pandas","typeguard"],
