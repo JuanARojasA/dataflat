@@ -1,5 +1,5 @@
 '''
-pandas_df/flattener.py - The processor script for pandas dataframes flattening process
+dataflat/pandas_df/flattener.py - The processor script for pandas dataframes flattening process
 
 Copyright (C) 2023 Juan ROJAS
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -23,16 +23,19 @@ from typing import List
 from dataflat.commons import init_logger
 from dataflat.exceptions import FlatteningException
 from dataflat.dictionary.flattener import CustomFlattener as DictionaryCustomFlattener
+from dataflat.utils.case_translator import CustomCaseTranslator
 
 logger = init_logger(__name__)
 
 @typechecked
 class CustomFlattener():
-    def __init__(self):
+    def __init__(self, case_translator:CustomCaseTranslator, replace_dots:bool):
         logger.info("CustomFlattener for Pandas Dataframes has been initiated")
+        self._case_translator = case_translator
+        self._replace_dots = replace_dots
 
 
-    def transform(self, dataframe:pd.DataFrame, id_key:str, black_list:List[str] = [], dataframe_name:str = "df", to_snake_case:bool = False, replace_dots:bool = False, chunk_size:int = 500) -> dict:
+    def transform(self, dataframe:pd.DataFrame, id_key:str, black_list:List[str] = [], dataframe_name:str = "df", chunk_size:int = 500) -> dict:
         """Receive a pandas Dataframe, and return a dictionary with the
         flattenend pandas Dataframes.
         If a black_list is provided then all the column names inside the black_list will
@@ -41,11 +44,6 @@ class CustomFlattener():
         column.
         The dataframe_name will be used to reference each resulting flattened dataframe
         under the processed_dataframes dictionary returned.
-
-        BEAWARE: This function will convert the dataframe to multiple dicitonaries (one per row) 
-        and process them using the DictionaryProcessor.
-        If you already have dictionaries before converting them to Dataframe, use DictionaryProcessor first, and later
-        convert the resulting dictionaries to Dataframes.
 
         Parameters
         ----------
@@ -58,10 +56,6 @@ class CustomFlattener():
         dataframe_name: str, (default 'df')
             A reference name for the dataframe, used to difference each
             resulting dataframe in the processed_dataframes return.
-        to_snake_case: bool
-            If True process the column name to Snake Case.
-        replace_dots: bool
-            If True replace the column name dots with underscores.
         chunk_size: int, (default 500)
             The chunk size used to process the dataframe in batches. 
             i.e. If dataframe size is 2000, and chunk_size is 500,
@@ -75,19 +69,25 @@ class CustomFlattener():
         if dataframe_len == 0:
             raise FlatteningException("The provided dataframe is empty.")
     
-        flattener = DictionaryCustomFlattener()
+        dict_flattener = DictionaryCustomFlattener(self._case_translator, self._replace_dots)
         processed_dataframes = {}
 
         for i in range(0, dataframe_len, chunk_size):
             records = dataframe[i:i+chunk_size].to_dict('records')
+            processed_dictionaries = {}
             for dictionary in records:
-                processed_dictionary = flattener.transform(dictionary, id_key, black_list, dataframe_name, 
-                                                           to_snake_case=to_snake_case,
-                                                           replace_dots=replace_dots)
-                for key, value in processed_dictionary.items():
-                    print(f"{key}: {value}")
-                    try:
-                        processed_dataframes[key].extend( processed_dictionary[key] )
-                    except:
-                        processed_dataframes[key] = processed_dictionary[key]
+                processed_data = dict_flattener.transform(dictionary, id_key, black_list, dataframe_name)
+                for key, value in processed_data.items():
+                    if  key not in processed_dictionaries:
+                        if isinstance(value, list):
+                            processed_dictionaries[key] = value
+                        else:
+                            processed_dictionaries[key] = [value]
+                    else:
+                        if isinstance(value, list):
+                            processed_dictionaries[key].extend(value)
+                        else:
+                            processed_dictionaries[key].extend([value])
+                for key, value in processed_dictionaries.items():
+                    processed_dataframes[key] = pd.DataFrame.from_dict(value)
         return processed_dataframes

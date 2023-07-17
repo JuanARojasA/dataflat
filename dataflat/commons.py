@@ -1,5 +1,5 @@
 '''
-commons.py - a script file for common used functions
+dataflat/commons.py - a script file for common used functions
 
 Copyright (C) 2023 Juan ROJAS
 Licensed under the Apache License, Version 2.0 (the "License");

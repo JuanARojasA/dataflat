@@ -1,5 +1,5 @@
 '''
-flattener_handler.py - a module handler for pyflat lib
+dataflat/flattener_handler.py - a module handler for dataflat lib
 
 Copyright (C) 2023 Juan ROJAS
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -20,12 +20,12 @@ Authors:
 import enum
 from importlib import import_module
 from dataflat.commons import init_logger
-from typing import Literal
 from typeguard import typechecked
+from dataflat.utils.case_translator import CaseTranslatorOptions, CustomCaseTranslator
 
 logger = init_logger(__name__)
 
-class Options(enum.Enum): # Possible values
+class FlattenerOptions(enum.Enum):
     DICTIONARY = 1
     PANDAS_DF = 2
     SPARK_DF = 3
@@ -35,18 +35,31 @@ class Flattener():
     def __init__(self):
         logger.info("Flattener Handler initiated")
 
-    def handler(self, custom_flattener: Literal[Options.DICTIONARY, Options.PANDAS_DF, Options.SPARK_DF]):
+    def handler(self, custom_flattener: FlattenerOptions,
+                from_case: CaseTranslatorOptions=CaseTranslatorOptions.CAMEL_CASE,
+                to_case: CaseTranslatorOptions=CaseTranslatorOptions.SNAKE_CASE,
+                replace_dots:bool=False):
         """Returns relevant flattener
 
         Parameters
         ----------
-        custom_flattener: Type[Options]
+        custom_flattener: FlattenerOptions
             Specify the Flattener class to use.
-
+        from_case: CaseTranslatorOptions
+            The original case of the key names in dictionary
+        from_case: CaseTranslatorOptions
+            The destination case of the key names in dictionary
+        replace_dots: bool
+            Sepcify if all the dots (used as nested dictionary separator) on processed dictionary
+            will be replaced with underscores
         Returns
         -------
         class -- CustomFlattener object 
         """
+        split_string = " " if from_case.name in ("CAMEL_CASE","PASCAL_CASE","HUMAN_CASE") else "_" if from_case.name == "SNAKE_CASE" else "-"
         flattener = "dataflat.{}.flattener".format(custom_flattener.name.lower())
+        if from_case.name == "LOWER_CASE":
+            logger.warning(f"Is not possible to translate from LOWER_CASE to {to_case.name}, switching to LOWER_CASE")
+            to_case = CaseTranslatorOptions.LOWER_CASE
 
-        return getattr(import_module(flattener), 'CustomFlattener')()
+        return getattr(import_module(flattener), 'CustomFlattener')(CustomCaseTranslator(from_case.name.lower(), to_case.name.lower(), split_string), replace_dots)

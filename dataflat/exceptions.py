@@ -1,5 +1,5 @@
 '''
-exceptions.py - an exception classes script
+dataflat/exceptions.py - an exception classes script
 
 Copyright (C) 2023 Juan ROJAS
 Licensed under the Apache License, Version 2.0 (the "License");
