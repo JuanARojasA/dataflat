@@ -179,7 +179,7 @@ class CustomFlattener():
         for dict_name, flattened_dicts in self._processed_data.items():
             if dict_name != json_name:
                 dict_list = []
-                parent_json_id = self._replace_dots(f"{json_name}{self._reference_separator}index" )
+                parent_json_id = self._replace_dots(f"{json_name}{self._reference_separator}{id_key}" )
                 for index in flattened_dicts.keys():
                     if isinstance(flattened_dicts[index], list):
                         for sub_index, sub_dict in enumerate(flattened_dicts[index]):
