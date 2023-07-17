@@ -80,13 +80,11 @@ class CustomFlattener():
                 print(processed_dictionaries.keys())
                 for key, value in processed_data.items():
                     if  key not in processed_dictionaries:
-                        print(f"Key {key} not in dict")
                         if isinstance(value, list):
                             processed_dictionaries[key] = value
                         else:
                             processed_dictionaries[key] = [value]
                     else:
-                        print(f"Key {key} in dict")
                         if isinstance(value, list):
                             processed_dictionaries[key].extend(value)
                         else:
