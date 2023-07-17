@@ -23,6 +23,7 @@ from typeguard import typechecked
 from typing import List
 from dataflat.commons import init_logger
 from dataflat.exceptions import FlatteningException
+from dataflat.utils.case_translator import CustomCaseTranslator
 from pyspark.sql.dataframe import DataFrame
 from pyspark.sql.functions import posexplode
 
@@ -30,21 +31,21 @@ logger = init_logger(__name__)
 
 @typechecked
 class CustomFlattener():
-    def __init__(self, case_translator, replace_dots):
-        print("CustomFlattener for PySpark Dataframes has been initiated")
-        self.case_translator = case_translator
-        self.reference_separator = "_" if replace_dots else "."
+    def __init__(self, case_translator:CustomCaseTranslator, replace_dots:bool):
+        logger.info("CustomFlattener for PySpark Dataframes has been initiated")
+        self._case_translator = case_translator
+        self._reference_separator = "_" if replace_dots else "."
 
 
     def _process_strings(self, strings:List[str], join_key:str):
-        return join_key.join([self.case_translator.translate(string) for string in strings if string!=""])
+        return join_key.join([self._case_translator.translate(string) for string in strings if string!=""])
 
 
     def _process_dataframe_columns(self, dataframe_name:str, dataframe:DataFrame):
         for col in dataframe.columns:
-            renamed_col = re.sub(f"{self.reference_separator}+", self.reference_separator, self._process_strings(col.split("."), self.reference_separator))
+            renamed_col = re.sub(f"{self._reference_separator}+", self._reference_separator, self._process_strings(col.split("."), self._reference_separator))
             dataframe = dataframe.withColumnRenamed(col, renamed_col)
-        dataframe_name = re.sub(f"{self.reference_separator}+", self.reference_separator, self._process_strings(dataframe_name.split("."), self.reference_separator))
+        dataframe_name = re.sub(f"\\{self._reference_separator}\\{self._reference_separator}+", self._reference_separator, self._process_strings(dataframe_name.split("."), self._reference_separator))
         return (dataframe_name, dataframe)
 
 
@@ -71,19 +72,19 @@ class CustomFlattener():
             provided Dataframe schema.
         """
         for field in dataframe_schema['fields']:
-            if field['name'] not in self.black_list:
+            if field['name'] not in self._black_list:
                 field_ref = _ref + f"`{field['name']}`"
                 field_name = field_ref.replace("`","").replace(f"{dataframe_name.split('.')[-1]}.","")
                 if type(field['type']) is dict:
                     if field['type']['type'] == "array":
                         try:
-                            named_struct[f"{dataframe_name}.{field_name}"] += f"'{self.parent_df_name}_id',{id_key},'{field_name}',{field_ref},"
+                            named_struct[f"{dataframe_name}.{field_name}"] += f"'{self._parent_df_name}_id',{id_key},'{field_name}',{field_ref},"
                         except:
-                            named_struct[f"{dataframe_name}.{field_name}"] = f"'{self.parent_df_name}_id',{id_key},'{field_name}',{field_ref},"
+                            named_struct[f"{dataframe_name}.{field_name}"] = f"'{self._parent_df_name}_id',{id_key},'{field_name}',{field_ref},"
                     else:
                         named_struct = self._get_schema_struct(field['type'], id_key, dataframe_name, f"{field_ref}.", named_struct)
                 elif field['type'] == "map":
-                    print(f"MapType is not supported, skipping column: {field_name}")
+                    logger.warning(f"MapType is not supported, skipping column: {field_name}")
                 else:
                     try:
                         named_struct[dataframe_name] += f"'{field_name}',{field_ref},"
@@ -170,14 +171,14 @@ class CustomFlattener():
         """
         if len(dataframe.head(1)) == 0:
             raise FlatteningException("The provided dataframe is empty.")
-        elif id_key not in dataframe.cols:
+        elif id_key not in dataframe.columns:
             raise FlatteningException(f"The provided id_key={id_key} does not exist in dataframe")
         
-        self.parent_df_name = dataframe_name
-        self.black_list = black_list
-        aux, processed_data = {}, {}
+        self._parent_df_name = dataframe_name
+        self._black_list = black_list
+        aux, self._processed_data = {}, {}
         aux = self._processor(dataframe, id_key, dataframe_name)
         for processed_df_name, processed_df in aux.items():
             processed_aux = self._process_dataframe_columns(processed_df_name, processed_df)
-            processed_data[processed_aux[0]] = processed_aux[1]
-        return processed_data
+            self._processed_data[processed_aux[0]] = processed_aux[1]
+        return self._processed_data

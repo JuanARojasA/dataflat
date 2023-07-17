@@ -17,12 +17,21 @@ Authors:
     Juan ROJAS <jarojasa97@gmail.com>
 '''
 
+import enum
 import re
 from dataflat.commons import init_logger
 from typeguard import typechecked
 from typing import List
 
 logger = init_logger(__name__)
+
+class CaseTranslatorOptions(enum.Enum): # Possible values
+    SNAKE_CASE = 1
+    KEBAB_CASE = 2
+    CAMEL_CASE = 3
+    PASCAL_CASE = 4
+    LOWER_CASE = 5
+    HUMAN_READABLE = 6
 
 @typechecked
 class CustomCaseTranslator():

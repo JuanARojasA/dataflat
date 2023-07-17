@@ -23,15 +23,16 @@ from typing import List
 from dataflat.commons import init_logger
 from dataflat.exceptions import FlatteningException
 from dataflat.dictionary.flattener import CustomFlattener as DictionaryCustomFlattener
+from dataflat.utils.case_translator import CustomCaseTranslator
 
 logger = init_logger(__name__)
 
 @typechecked
 class CustomFlattener():
-    def __init__(self, case_translator, replace_dots):
+    def __init__(self, case_translator:CustomCaseTranslator, replace_dots:bool):
         logger.info("CustomFlattener for Pandas Dataframes has been initiated")
-        self.case_translator = case_translator
-        self.replace_dots = replace_dots
+        self._case_translator = case_translator
+        self._replace_dots = replace_dots
 
 
     def transform(self, dataframe:pd.DataFrame, id_key:str, black_list:List[str] = [], dataframe_name:str = "df", chunk_size:int = 500) -> dict:
@@ -68,16 +69,28 @@ class CustomFlattener():
         if dataframe_len == 0:
             raise FlatteningException("The provided dataframe is empty.")
     
-        dict_flattener = DictionaryCustomFlattener(self.case_translator, self.replace_dots)
+        dict_flattener = DictionaryCustomFlattener(self._case_translator, self._replace_dots)
         processed_dataframes = {}
 
         for i in range(0, dataframe_len, chunk_size):
             records = dataframe[i:i+chunk_size].to_dict('records')
+            processed_dictionaries = {}
             for dictionary in records:
-                processed_dictionary = dict_flattener.transform(dictionary, id_key, black_list, dataframe_name)
-                for key, value in processed_dictionary.items():
-                    try:
-                        processed_dataframes[key].extend( value )
-                    except:
-                        processed_dataframes[key] = value
+                processed_data = dict_flattener.transform(dictionary, id_key, black_list, dataframe_name)
+                print(processed_dictionaries.keys())
+                for key, value in processed_data.items():
+                    if  key not in processed_dictionaries:
+                        print(f"Key {key} not in dict")
+                        if isinstance(value, list):
+                            processed_dictionaries[key] = value
+                        else:
+                            processed_dictionaries[key] = [value]
+                    else:
+                        print(f"Key {key} in dict")
+                        if isinstance(value, list):
+                            processed_dictionaries[key].extend(value)
+                        else:
+                            processed_dictionaries[key].extend([value])
+                for key, value in processed_dictionaries.items():
+                    processed_dataframes[key] = pd.DataFrame.from_dict(value)
         return processed_dataframes

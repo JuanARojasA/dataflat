@@ -20,24 +20,15 @@ Authors:
 import enum
 from importlib import import_module
 from dataflat.commons import init_logger
-from typing import Literal
 from typeguard import typechecked
-from utils.case_translator import CustomCaseTranslator
+from dataflat.utils.case_translator import CaseTranslatorOptions, CustomCaseTranslator
 
 logger = init_logger(__name__)
 
-class FlattenerOptions(enum.Enum): # Possible values
+class FlattenerOptions(enum.Enum):
     DICTIONARY = 1
     PANDAS_DF = 2
     SPARK_DF = 3
-
-class CaseTranslatorOptions(enum.Enum): # Possible values
-    SNAKE_CASE = 1
-    KEBAB_CASE = 2
-    CAMEL_CASE = 3
-    PASCAL_CASE = 4
-    LOWER_CASE = 5
-    HUMAN_READABLE = 6
 
 @typechecked
 class Flattener():
@@ -46,7 +37,7 @@ class Flattener():
 
     def handler(self, custom_flattener: FlattenerOptions,
                 from_case: CaseTranslatorOptions=CaseTranslatorOptions.CAMEL_CASE,
-                to_case:CaseTranslatorOptions=CaseTranslatorOptions.CAMEL_CASE,
+                to_case: CaseTranslatorOptions=CaseTranslatorOptions.SNAKE_CASE,
                 replace_dots:bool=False):
         """Returns relevant flattener
 
@@ -67,5 +58,8 @@ class Flattener():
         """
         split_string = " " if from_case.name in ("CAMEL_CASE","PASCAL_CASE","HUMAN_CASE") else "_" if from_case.name == "SNAKE_CASE" else "-"
         flattener = "dataflat.{}.flattener".format(custom_flattener.name.lower())
+        if from_case.name == "LOWER_CASE":
+            logger.warning(f"Is not possible to translate from LOWER_CASE to {to_case.name}, switching to LOWER_CASE")
+            to_case = CaseTranslatorOptions.LOWER_CASE
 
         return getattr(import_module(flattener), 'CustomFlattener')(CustomCaseTranslator(from_case.name.lower(), to_case.name.lower(), split_string), replace_dots)
