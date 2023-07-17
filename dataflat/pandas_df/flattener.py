@@ -77,7 +77,6 @@ class CustomFlattener():
             processed_dictionaries = {}
             for dictionary in records:
                 processed_data = dict_flattener.transform(dictionary, id_key, black_list, dataframe_name)
-                print(processed_dictionaries.keys())
                 for key, value in processed_data.items():
                     if  key not in processed_dictionaries:
                         if isinstance(value, list):

@@ -77,10 +77,12 @@ class CustomFlattener():
                 field_name = field_ref.replace("`","").replace(f"{dataframe_name.split('.')[-1]}.","")
                 if type(field['type']) is dict:
                     if field['type']['type'] == "array":
+                        field_name_aux = 'value' if isinstance(field['type']['elementType'], str) else field_name
+                        
                         try:
-                            named_struct[f"{dataframe_name}.{field_name}"] += f"'{self._parent_df_name}_id',{id_key},'{field_name}',{field_ref},"
+                            named_struct[f"{dataframe_name}.{field_name}"] += f"'{self._parent_df_name}_{self._parent_id_key}',{id_key},'{field_name_aux}',{field_ref},"
                         except:
-                            named_struct[f"{dataframe_name}.{field_name}"] = f"'{self._parent_df_name}_id',{id_key},'{field_name}',{field_ref},"
+                            named_struct[f"{dataframe_name}.{field_name}"] = f"'{self._parent_df_name}_{self._parent_id_key}',{id_key},'{field_name_aux}',{field_ref},"
                     else:
                         named_struct = self._get_schema_struct(field['type'], id_key, dataframe_name, f"{field_ref}.", named_struct)
                 elif field['type'] == "map":
@@ -117,7 +119,7 @@ class CustomFlattener():
         processed_data = {}
         schema = json.loads(dataframe.schema.json())
         ns = self._get_schema_struct(schema, id_key, dataframe_name, _ref="", named_struct={})
-        parent_pos = f",'{dataframe_name}_pos',`pos`" if "'pos',`pos`" in ns[dataframe_name] else ""
+        parent_pos = f",'{dataframe_name}_index',`index`" if "'index',`index`" in ns[dataframe_name] else ""
         for df_name, struct in ns.items():
             if df_name != dataframe_name:
                 selectExpr = f"named_struct( {struct[:-1]}{parent_pos} ) as Item"
@@ -125,9 +127,9 @@ class CustomFlattener():
                 child_id_key = aux_df.columns[0] if "." not in aux_df.columns[0] else f"`{aux_df.columns[0]}`"
                 expld_col = aux_df.columns[1]
                 expld_expr = expld_col if "." not in expld_col else f"`{expld_col}`"
-                selected_cols = [child_id_key, posexplode(expld_expr).alias('pos', expld_col)]
+                selected_cols = [child_id_key, posexplode(expld_expr).alias('index', expld_col)]
                 if parent_pos:
-                    selected_cols.append(f'`{dataframe_name}_pos`')
+                    selected_cols.append(f'`{dataframe_name}_index`')
                 aux_df = aux_df.select(selected_cols) \
                     .withColumnRenamed(expld_col, expld_col.split(".")[-1])
                 processed_data[df_name] = aux_df
@@ -175,6 +177,7 @@ class CustomFlattener():
             raise FlatteningException(f"The provided id_key={id_key} does not exist in dataframe")
         
         self._parent_df_name = dataframe_name
+        self._parent_id_key = id_key
         self._black_list = black_list
         aux, self._processed_data = {}, {}
         aux = self._processor(dataframe, id_key, dataframe_name)
