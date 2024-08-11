@@ -1,3 +1,7 @@
+.idea
+
+__pycache__
+*test*
 *.zip
 *.DS_Store
 bdist.macosx*
