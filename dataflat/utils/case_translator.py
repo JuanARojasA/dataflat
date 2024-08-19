@@ -34,16 +34,17 @@ class CaseTranslatorOptions(enum.Enum): # Possible values
     HUMAN_READABLE = 6
 
 @typechecked
-class CustomCaseTranslator():
-    def __init__(self, from_case:str, to_case:str, split_string:str=""):
+class CustomCaseTranslator:
+    def __init__(self, from_case: str, to_case: str, split_string: str, remove_special_chars: bool):
         logger.info(f"CustomCaseTranslator for {from_case} to {to_case} has been initiated")
         self.from_case = from_case
         self.to_case = to_case
         self.split_string = split_string
+        self.remove_special_chars = remove_special_chars
 
     def _pre_process_string(self, string:str) -> str:
         """Receive an input string in camel or pascal case and process it
-        to return a character splitted string.
+        to return a split string.
 
         Parameters
         ----------
@@ -53,14 +54,21 @@ class CustomCaseTranslator():
         -------
         conv_string: str
         """
-        conv_string = re.sub('(.)([A-Z][a-z]+)', r'\1 \2', re.sub(r'\W+', "", string))
-        conv_string = re.sub('(.)([0-9]+)', r'\1 \2', conv_string)
-        conv_string = re.sub('([a-z0-9])([A-Z])', r'\1 \2', conv_string)
+        conv_string = re.sub(r'([A-Z]{2,})([A-Z][a-z])', r'\1 \2', string)
+        conv_string = re.sub(r'([A-Z])([A-Z]{2,})', r'\1 \2', conv_string)
+        conv_string = re.sub(r'([a-z])([A-Z])', r'\1 \2', conv_string)
+        conv_string = re.sub(r'([A-Za-z])([0-9])', r'\1 \2', conv_string)
+        conv_string = re.sub(r'([0-9])([A-Z])', r'\1 \2', conv_string)
+
+        if not self.remove_special_chars:
+            conv_string = re.sub(r'(\S)([^\w\s])(\S)', r'\1 \2 \3', conv_string)
+            conv_string = re.sub(r'([^\w\s])(\S)', r'\1 \2', conv_string)
+            conv_string = re.sub(r'(\S)([^\w\s])', r'\1 \2', conv_string)
         return conv_string
 
     def _normalize(self, string:str) -> List[str]:
-        """Receive a splittable string, removes all non alphanumerical or underscore
-        characters, and return a list of the proccesed words in the string
+        """Receive a splittable string, removes all non-alphanumerical or underscore
+        characters, and return a list of the processed words in the string
 
         Parameters
         ----------
@@ -70,7 +78,7 @@ class CustomCaseTranslator():
         -------
         string: str
         """
-        replaced_strings = [re.sub(r'\W+', "", sub_string) for sub_string in string.split(self.split_string)]
+        replaced_strings = string.split(self.split_string)
         return [replaced_string.lower() for replaced_string in replaced_strings if replaced_string!=""]
 
     def _kebab_case(self, string:str) -> str:
@@ -163,6 +171,8 @@ class CustomCaseTranslator():
         -------
         string: str
         """
+        if self.remove_special_chars:
+            string = re.sub(r'\W+', "", string)
         if self.from_case in ('camel_case','pascal_case'):
             string = self._pre_process_string(string)
         return getattr(self, f"_{self.to_case}")(string)

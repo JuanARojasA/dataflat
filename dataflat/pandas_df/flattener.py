@@ -29,15 +29,15 @@ logger = init_logger(__name__)
 
 @typechecked
 class CustomFlattener():
-    def __init__(self, case_translator:CustomCaseTranslator, replace_dots:bool):
+    def __init__(self, case_translator:CustomCaseTranslator, replace_string: str):
         logger.info("CustomFlattener for Pandas Dataframes has been initiated")
         self._case_translator = case_translator
-        self._replace_dots = replace_dots
+        self._replace_string = replace_string
 
 
     def transform(self, dataframe:pd.DataFrame, id_key:str, black_list:List[str] = [], dataframe_name:str = "df", chunk_size:int = 500) -> dict:
         """Receive a pandas Dataframe, and return a dictionary with the
-        flattenend pandas Dataframes.
+        flattened pandas Dataframes.
         If a black_list is provided then all the column names inside the black_list will
         be skipped. Notice that if ['name'] is provided as black list, then 
         all the 'name' columns will be skipped, even if they are under a nested
@@ -47,7 +47,7 @@ class CustomFlattener():
 
         Parameters
         ----------
-        df: pandas.Dataframe
+        dataframe: pandas.Dataframe
             The dataframe to be flattened.
         id_key: str
             The id key to be used as reference to the parent dataframe.
@@ -69,7 +69,7 @@ class CustomFlattener():
         if dataframe_len == 0:
             raise FlatteningException("The provided dataframe is empty.")
     
-        dict_flattener = DictionaryCustomFlattener(self._case_translator, self._replace_dots)
+        dict_flattener = DictionaryCustomFlattener(self._case_translator, self._replace_string)
         processed_dataframes = {}
 
         for i in range(0, dataframe_len, chunk_size):

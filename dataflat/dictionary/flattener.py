@@ -20,6 +20,8 @@ Authors:
 import re
 from typeguard import typechecked
 from typing import Tuple, List, Any, Union
+
+from dataflat.base.flattener import BaseFlattener
 from dataflat.commons import init_logger
 from dataflat.exceptions import FlatteningException
 from dataflat.utils.case_translator import CustomCaseTranslator
@@ -28,56 +30,27 @@ from dataflat.utils.case_translator import CustomCaseTranslator
 logger = init_logger(__name__)
 
 @typechecked
-class CustomFlattener():
-    def __init__(self, case_translator:CustomCaseTranslator, replace_dots:bool):
+class CustomFlattener(BaseFlattener):
+    def __init__(self, case_translator:CustomCaseTranslator, replace_string :str):
         logger.info("CustomFlattener for Python Dictionaries has been initiated")
         self._case_translator = case_translator
-        self._reference_separator = "_" if replace_dots else "."
+        self._replace_string = replace_string
+        self._processed_data = {}
 
 
     def _replace_dots(self, string:str):
-        """Receive a String, and replace the '.' in name with '_'
-        Parameters
-        ----------
-        string: str
-            The string to be processed.
-        Returns
-        -------
-        replaced_string: str
-        """
-        if self._reference_separator != ".":
-            string = string.replace(".", self._reference_separator)
-            string = re.sub(f"\\{self._reference_separator}\\{self._reference_separator}+", self._reference_separator, string)
+        if self._replace_string != ".":
+            string = string.replace(".", self._replace_string)
+            string = re.sub(f"\\{self._replace_string}\\{self._replace_string}+", self._replace_string, string)
         return string
 
 
     def _insert_child_record(self, processed_data:dict, json_name:str, key_ref:str, value:Any,
                              nested_index:Union[None,int]=None,
                              parent_index:Union[Tuple[None,None], Tuple[str,None], Tuple[str,int]]=(None,None)):
-        """Receive a processed_data dictionary and add new key-value pairs to a nested dictionary in processed_data
-        using the json_name and the parent and nested index.
-        Parameters
-        ----------
-        processed_data: dict
-            The dictionary of processed dictionaries, where the key-value pair will be added
-        json_name: str
-            The processed dictionary name
-        key_ref: str
-            The key name to be added
-        value: Any
-            The value to be added on key_ref
-        nested_index: int
-            If the current key-value was inside a list, this value reference the item position in the list
-        parent_index: Tuple[str, int]
-            Reference to the name and index of the parent dictionary, in case the key-value was a 
-            parameter of a dictionary on list in another list.
-        Returns
-        -------
-        processed_data: dict
-        """
         if nested_index is not None:
             if parent_index[1] is not None:
-                parent_index_name = f"{parent_index[0]}{self._reference_separator}index"
+                parent_index_name = f"{parent_index[0]}{self._replace_string}index"
                 if processed_data[json_name]:
                     try:
                         if processed_data[json_name][parent_index[1]]:
@@ -108,26 +81,15 @@ class CustomFlattener():
         return processed_data
 
 
-    def _processor(self, data:Any, json_name:str, ref:str="", processed_data:dict={}, 
+    def _processor(self, data:Any, json_name: str, ref: str = "", processed_data = None,
                    nested_index:Union[None,int]=None,
                    parent_index:Union[Tuple[None,None], Tuple[str,None], Tuple[str,int]]=(None,None)):
-        """Receive a List or Dictionary data to be flattened, a black list used to skip the keys of a dictionary, a json_name
-        used as reference in case there are a nested list to be flattened in the process.
-        ----------
-        data: Any
-            The dictionary or List to be flattened
-        black_list: List[str]
-            A list of keys to be skipped on flattening process
-        json_name: str
-            The current processed dictionary name
-        Returns
-        -------
-        processed_data: dict
-        """
+        processed_data = {} if processed_data is None else processed_data
+
         processed_data[json_name] = {} if json_name not in processed_data else processed_data[json_name]
         if isinstance(data, dict):
             for key, value in data.items():
-                if key not in self._black_list:
+                if key not in self.black_list:
                     key_name = self._case_translator.translate(key)
                     key_ref = f"{ref}.{key_name}" if ref!="" else key_name
                     key_ref = self._replace_dots(key_ref)
@@ -151,44 +113,31 @@ class CustomFlattener():
         return processed_data
 
 
-    def transform(self, json_data, id_key:str, black_list:List[str] = [], json_name:str = "json") -> dict:
-        """Receive a List or Dictionary data to be flattened, a black list used to skip the keys of a dictionary, a json_name
-        used as reference in case there are a nested list to be flattened in the process.
-        ----------
-        json_data: Any
-            The dictionary or List to be flattened
-        id_key: str
-            The 'id' key name, used to add a reference on nested lists
-        black_list: List[str]
-            A list of keys to be skipped on flattening process
-        json_name: str
-            The json name, used to add a reference key-value on nested lists
-        Returns
-        -------
-        processed_data: dict
-        """
+    def transform(
+            self, json_data: dict[str, Any], primary_key:str,
+            black_list:List[str] = None, json_name: str = "json"
+    ) -> dict[str, Any]:
         if not json_data:
             raise FlatteningException("The provided dictionary is empty.")
-        elif id_key not in json_data:
-            raise FlatteningException(f"The provided id_key={id_key} does not exist in json_data")
+        elif primary_key not in json_data:
+            raise FlatteningException(f"The provided id_key={primary_key} does not exist in json_data")
         
-        self._black_list = black_list
-        self._processed_data = {}
+        self.black_list = [] if black_list is None else black_list
         json_name = self._case_translator.translate(json_name)
         self._processed_data = self._processor(json_data, json_name, processed_data=self._processed_data)
         for dict_name, flattened_dicts in self._processed_data.items():
             if dict_name != json_name:
                 dict_list = []
-                parent_json_id = self._replace_dots(f"{json_name}{self._reference_separator}{id_key}" )
+                parent_json_id = self._replace_dots(f"{json_name}{self._replace_string}{primary_key}" )
                 for index in flattened_dicts.keys():
                     if isinstance(flattened_dicts[index], list):
                         for sub_index, sub_dict in enumerate(flattened_dicts[index]):
                             sub_dict['index'] = sub_index
-                            sub_dict[parent_json_id] = self._processed_data[json_name][id_key]
+                            sub_dict[parent_json_id] = self._processed_data[json_name][primary_key]
                             dict_list.append(sub_dict)
                     else:
                         flattened_dicts[index]['index'] = index
-                        flattened_dicts[index][parent_json_id] = self._processed_data[json_name][id_key]
+                        flattened_dicts[index][parent_json_id] = self._processed_data[json_name][primary_key]
                         dict_list.append(flattened_dicts[index])
                 self._processed_data[dict_name] = dict_list
         return self._processed_data
