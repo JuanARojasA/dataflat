@@ -10,12 +10,17 @@ name: Publish Python 🐍 distributions 📦 to PyPI TestPyPI
 on:
   push:
     branches: 
-     - 'dev'
+     - dev
+    pull_request:
+      types: [ opened, synchronize, reopened ]
 permissions:
   contents: read
 
 jobs:
+  analysis:
+    uses: ./.github/workflows/sonar_code_quality.yml
   deploy:
+    needs: [analysis]
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v3
