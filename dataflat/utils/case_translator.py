@@ -42,8 +42,8 @@ class CustomCaseTranslator:
         self.split_string = split_string
         self.remove_special_chars = remove_special_chars
 
-    def _pre_process_string(self, string:str) -> str:
-        """Receive an input string in camel or pascal case and process it
+    def _pre_process_string(self, string: str) -> str:
+        """Receive an input string in camel or Pascal case and process it
         to return a split string.
 
         Parameters
@@ -54,16 +54,21 @@ class CustomCaseTranslator:
         -------
         conv_string: str
         """
-        conv_string = re.sub(r'([A-Z]{2,})([A-Z][a-z])', r'\1 \2', string)
-        conv_string = re.sub(r'([A-Z])([A-Z]{2,})', r'\1 \2', conv_string)
-        conv_string = re.sub(r'([a-z])([A-Z])', r'\1 \2', conv_string)
-        conv_string = re.sub(r'([A-Za-z])([0-9])', r'\1 \2', conv_string)
-        conv_string = re.sub(r'([0-9])([A-Z])', r'\1 \2', conv_string)
+        # Step 1: Handle camel case, Pascal case, and mixed alphanumeric patterns
+        conv_string = re.sub(r'(?<=[a-z])(?=[A-Z])', ' ', string)  # camelCase to camel Case
+        conv_string = re.sub(r'(?<=[A-Z])(?=[A-Z][a-z])', ' ', conv_string)  # PascalCase to Pascal Case
+        conv_string = re.sub(r'(?<=[a-z])(?=\d)', ' ', conv_string)  # text123 to text 123
+        conv_string = re.sub(r'(?<=\d)(?=[a-zA-Z])', ' ', conv_string)  # 123text to 123 text
+        conv_string = re.sub(r'(?<=\d)(?=[A-Z])', ' ', conv_string)  # 123ABC to 123 ABC
 
+        # Handle special characters if `remove_special_chars` is False
         if not self.remove_special_chars:
-            conv_string = re.sub(r'(\S)([^\w\s])(\S)', r'\1 \2 \3', conv_string)
-            conv_string = re.sub(r'([^\w\s])(\S)', r'\1 \2', conv_string)
-            conv_string = re.sub(r'(\S)([^\w\s])', r'\1 \2', conv_string)
+            # Ensure spaces around special characters
+            conv_string = re.sub(r'([^\w\s])', r' \1 ', conv_string)
+
+        # Remove extra spaces around special characters and condense multiple spaces
+        conv_string = re.sub(r'\s+', ' ', conv_string).strip()
+
         return conv_string
 
     def _normalize(self, string:str) -> List[str]:

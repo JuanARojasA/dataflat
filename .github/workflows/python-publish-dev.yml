@@ -6,7 +6,7 @@
 # separate terms of service, privacy policy, and support
 # documentation.
 
-name: Publish Python 🐍 distributions 📦 to PyPI TestPyPI
+name: Publish Python 🐍 distributions 📦 to TestPyPI
 on:
   push:
     branches: 
