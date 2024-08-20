@@ -1,6 +1,7 @@
 name: Sonar
 on:
   [workflow_call]
+
 jobs:
   sonarcloud:
     name: SonarCloud
