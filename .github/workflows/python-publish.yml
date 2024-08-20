@@ -17,6 +17,8 @@ permissions:
 jobs:
   analysis:
     uses: ./.github/workflows/sonar_code_quality.yml
+    secrets:
+      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
   deploy:
     needs: [analysis]
     runs-on: ubuntu-latest

@@ -17,6 +17,8 @@ permissions:
 jobs:
   analysis:
     uses: ./.github/workflows/sonar_code_quality.yml
+    secrets:
+      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
   deploy:
     needs: [analysis]
     runs-on: ubuntu-latest
@@ -25,7 +27,7 @@ jobs:
     - name: Set up Python
       uses: actions/setup-python@v3
       with:
-        python-version: '3.x'˙
+        python-version: '3.x'
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
