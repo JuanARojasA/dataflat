@@ -3,7 +3,7 @@ A library to flatten all this annoiyng nested keys and columns on Dictionaries, 
 and Spark (pyspark) Dataframes.
 
 ### Installation
-```
+```bash
 pip install dataflat
 ```
 
@@ -12,8 +12,10 @@ How to instantiate a Flattener:
 
 First import the FlattenerOptions, CaseTranslator and Flattener classes
 ```Python
-from dataflat.flattener_handler import FlattenerOptions, CaseTranslatorOptions, Flattener
+from dataflat.flattener_handler import CaseTranslatorOptions, FlattenerOptions, handler
 ```
+The following step is to pass the required variables to the 
+
 
 The following step is assing the required variables for the flattening process.
 * reference_name: Used to assign a key name to each resulting dictionary or DataFrame from the transform function.
@@ -24,16 +26,14 @@ The following step is assing the required variables for the flattening process.
 
 ```Python
 # Default values:
-#   from_case = CaseTranslatorOptions.CAMEL_CASE
-#   to_case = CaseTranslatorOptions.SNAKE_CASE
-#   replace_dots = False
-#   chunk size = 500
-reference_name = 'data'
-id_key = 'id'
-black_list = ['keys','or','columns','to','skip']
-replace_dots = False
+#   from_case = None
+#   to_case = None
+#   replace_string = "."
+#   remove_special_chars = False
 from_case = CaseTranslatorOptions.CAMEL_CASE
 to_case = CaseTranslatorOptions.SNAKE_CASE
+replace_string = "."
+remove_special_chars = False
 ```
 
 Later, select the desired flattener from the options, according to the current type of your data (dict, pandas.DataFrame, spark.DataFrame)
@@ -45,6 +45,23 @@ custom_flattener = FlattenerOptions.SPARK_DF
 
 Finally instantiate the flattener class, and apply the transform function.
 ```Python
-flattener = Flattener().handler(custom_flattener, from_case, to_case, replace_dots)
+flattener = handler(custom_flattener, from_case, to_case)
+
+
+# Default values:
+#   from_case = None
+#   to_case = None
+#   replace_string = "."
+#   remove_special_chars = False
+entity_name = "data"
+primary_key = "id"
+black_list = ['keys','or','columns','to','skip']
 flattener_dict.transform(data, id_key, black_list, reference_name)
 ```
+
+### Recommendations
+1. For SPARK_DF flattener it;s recommended to set the 'caseSensitive' configuration to True on Spark.
+    On some occasions two keys can be the same, and can only be differentiated due to a capital letter.
+    ```Python
+        spark.conf.set('spark.sql.caseSensitive', True)
+    ```

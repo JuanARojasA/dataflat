@@ -61,15 +61,15 @@ def handler(
     flattener = "dataflat.{}.flattener".format(custom_flattener.name.lower())
 
     if (from_case is None) or (to_case is None):
+        logger.warning(f"One or both paramaters (from_case,to_case) are None, no translation will be applied.")
+        case_translator = None
+    elif from_case.name == to_case.name:
+        logger.warning(f"from_case and to_case are the same, no translation will be applied.")
         case_translator = None
     elif from_case.name == "LOWER_CASE":
         logger.warning(f"Is impossible to translate from LOWER_CASE to {to_case.name}, no translation will be applied.")
         case_translator = None
     else:
-        split_string = " " if from_case.name in ("CAMEL_CASE", "PASCAL_CASE", "HUMAN_CASE") \
-            else "_" if from_case.name == "SNAKE_CASE" else "-"
-        case_translator = CustomCaseTranslator(
-            from_case.name.lower(), to_case.name.lower(), split_string, remove_special_chars
-        )
+        case_translator = CustomCaseTranslator(from_case, to_case, remove_special_chars)
 
     return getattr(import_module(flattener), 'CustomFlattener')(case_translator, replace_string)

@@ -112,7 +112,6 @@ class CustomFlattener(BaseFlattener):
             logger.warning(f"Non-supported data type: {type(data)} with data {data}")
         return processed_data
 
-
     def transform(
             self, json_data: dict[str, Any], primary_key:str,
             black_list:List[str] = None, json_name: str = "json"

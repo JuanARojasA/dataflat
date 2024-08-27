@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from dataflat.utils.case_translator import CustomCaseTranslator
-
+from typing import Optional
 
 @dataclass
 class BaseFlattener:
@@ -18,18 +18,10 @@ class BaseFlattener:
     replace_string : str (default = ".")
         String used to separate nested data
 
-    case_translator : CustomCaseTranslator (default = None)
-        Case translator used for rename columns
-
     heritable_keys : list[str] (default = None)
         Keys or columns to be inherited
-
-    black_list : list[str] (default = None)
-        Keys or columns to be ignored
     """
     entity_name: str = "data"
     primary_key: str = "id"
     replace_string: str = "."
-    case_translator: CustomCaseTranslator = None
-    heritable_keys: list[str] = None
-    black_list: list[str] = None
+    heritable_keys: Optional[list[str]] = None

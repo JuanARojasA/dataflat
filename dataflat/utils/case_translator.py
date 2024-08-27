@@ -26,20 +26,19 @@ from typing import List
 logger = init_logger(__name__)
 
 class CaseTranslatorOptions(enum.Enum): # Possible values
-    SNAKE_CASE = 1
-    KEBAB_CASE = 2
-    CAMEL_CASE = 3
-    PASCAL_CASE = 4
-    LOWER_CASE = 5
-    HUMAN_READABLE = 6
+    SNAKE_CASE = {"id": 1, "split_string": "_"}
+    KEBAB_CASE = {"id": 2, "split_string": "-"}
+    CAMEL_CASE = {"id": 3, "split_string": " "}
+    PASCAL_CASE = {"id": 4, "split_string": " "}
+    HUMAN_READABLE = {"id": 5, "split_string": " "}
+    LOWER_CASE = {"id": 6, "split_string": " "}
 
 @typechecked
 class CustomCaseTranslator:
-    def __init__(self, from_case: str, to_case: str, split_string: str, remove_special_chars: bool):
-        logger.info(f"CustomCaseTranslator for {from_case} to {to_case} has been initiated")
+    def __init__(self, from_case: CaseTranslatorOptions, to_case: CaseTranslatorOptions, remove_special_chars: bool):
+        logger.info(f"CustomCaseTranslator for {from_case.name} to {to_case.name} has been initiated")
         self.from_case = from_case
         self.to_case = to_case
-        self.split_string = split_string
         self.remove_special_chars = remove_special_chars
 
     def _pre_process_string(self, string: str) -> str:
@@ -83,7 +82,7 @@ class CustomCaseTranslator:
         -------
         string: str
         """
-        replaced_strings = string.split(self.split_string)
+        replaced_strings = string.split(self.from_case.value['split_string'])
         return [replaced_string.lower() for replaced_string in replaced_strings if replaced_string!=""]
 
     def _kebab_case(self, string:str) -> str:
@@ -178,6 +177,6 @@ class CustomCaseTranslator:
         """
         if self.remove_special_chars:
             string = re.sub(r'\W+', "", string)
-        if self.from_case in ('camel_case','pascal_case'):
+        if self.from_case.name in ('CAMEL_CASE','PASCAL_CASE'):
             string = self._pre_process_string(string)
-        return getattr(self, f"_{self.to_case}")(string)
+        return getattr(self, f"_{self.to_case.name.lower()}")(string)
