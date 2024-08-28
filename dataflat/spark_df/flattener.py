@@ -1,7 +1,7 @@
 """
 dataflat/spark_df/flattener.py - The processor script for spark dataframes flattening process
 
-Copyright (C) 2023 Juan ROJAS
+Copyright (C) 2024 Juan ROJAS
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
@@ -18,15 +18,16 @@ Authors:
 """
 import re
 from collections import defaultdict
-
 from typing import Any, Optional
+
+from pyspark.sql import DataFrame, SparkSession
 from typeguard import typechecked
+
+from dataflat.base.flattener import BaseFlattener
 from dataflat.commons import init_logger
 from dataflat.exceptions import FlatteningException
 from dataflat.utils.case_translator import CustomCaseTranslator
 from dataflat.utils.string import dot_join_args
-from dataflat.base.flattener import BaseFlattener
-from pyspark.sql import DataFrame, SparkSession
 
 
 def _add_backticks_if_special_char(string: str):
@@ -52,19 +53,19 @@ class CustomFlattener(BaseFlattener):
     def __set__(
             self,
             primary_key: str,
-            dataframe_name: Optional[str] = None,
-            black_list: Optional[list[str]] = None,
+            entity_name: Optional[str] = None,
             partition_keys: Optional[list[str]] = None,
+            black_list: Optional[list[str]] = None,
             case_translator: Optional[CustomCaseTranslator] = None,
             replace_string: Optional[str] = None
     ):
 
         self.primary_key = primary_key if primary_key else self.primary_key
-        self.entity_name = dataframe_name if dataframe_name else self.entity_name
+        self.entity_name = entity_name if entity_name else self.entity_name
         self.partition_keys = partition_keys if partition_keys else []
         self.black_list = black_list if black_list is not None else []
         self.case_translator = case_translator if case_translator else None
-        self.replace_string = replace_string if replace_string  else None
+        self.replace_string = replace_string if replace_string else "."
         self._flattened_schemas: dict[str, list[str]] = {}
         self._relations: dict[str, str] = {}
         self._heritable_fields: defaultdict[str, list] = defaultdict(list)
@@ -73,7 +74,7 @@ class CustomFlattener(BaseFlattener):
     def _process_strings(self, string: str):
         if self.case_translator is not None:
             return self.replace_string.join(
-                [self.case_translator.translate(sub_string) for sub_string in string.split('.') if string!=""]
+                [self.case_translator.translate(sub_string) for sub_string in string.split('.') if string != ""]
             )
         return self.replace_string.join(string.split('.'))
 
@@ -188,14 +189,12 @@ class CustomFlattener(BaseFlattener):
             self,
             dataframe: DataFrame,
             primary_key: str,
-            black_list: Optional[list[str]] = None,
+            entity_name: Optional[str] = None,
             partition_keys: Optional[list[str]] = None,
-            dataframe_name: Optional[str] = None,
-            case_translator: Optional[CustomCaseTranslator] = None,
-            replace_string: Optional[str] = None,
+            black_list: Optional[list[str]] = None
     ) -> dict[str, DataFrame]:
-        self.__set__(primary_key, dataframe_name, black_list, case_translator, replace_string)
-        dataframe.createOrReplaceTempView(dataframe_name)
+        self.__set__(primary_key, entity_name, partition_keys, black_list)
+        dataframe.createOrReplaceTempView(entity_name)
         self._get_nested_struct(dataframe.schema.jsonValue(), self.entity_name, "")
         sorted_dataframes = sorted(list(self._flattened_schemas.keys()), key=lambda k: k.split('.'))
 
@@ -208,7 +207,7 @@ class CustomFlattener(BaseFlattener):
             if table_name != self.entity_name:
                 source_table = "temp"
                 heritable_fields = self._processor(
-                    parent_table, partition_keys,
+                    parent_table, self.partition_keys,
                     self._get_heritable_fields(parent_table), table_name, explode_col
                 )
                 heritable_fields = [f'`{field}`' if '.' in field else field for field in heritable_fields]

@@ -1,11 +1,11 @@
-'''
+"""
 dataflat/flattener_handler.py - a module handler for dataflat lib
 
-Copyright (C) 2023 Juan ROJAS
+Copyright (C) 2024 Juan ROJAS
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
-    http://www.apache.org/licenses/LICENSE-2.0
+    https://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
@@ -15,11 +15,10 @@ limitations under the License.
 
 Authors:
     Juan ROJAS <jarojasa97@gmail.com>
-'''
+"""
 
 import enum
 from importlib import import_module
-
 from dataflat.base.flattener import BaseFlattener
 from dataflat.commons import init_logger
 from typeguard import typechecked
@@ -27,10 +26,11 @@ from dataflat.utils.case_translator import CaseTranslatorOptions, CustomCaseTran
 
 logger = init_logger(__name__)
 
+
 class FlattenerOptions(enum.Enum):
     DICTIONARY = 1
-    PANDAS_DF = 2
-    SPARK_DF = 3
+    SPARK_DF = 2
+
 
 @typechecked
 def handler(
@@ -39,7 +39,7 @@ def handler(
     to_case: CaseTranslatorOptions = None,
     replace_string: str = ".",
     remove_special_chars: bool = False
-) -> BaseFlattener:
+):
     """Return the selected flattener class from FlattenerOptions
 
     Parameters
@@ -61,10 +61,10 @@ def handler(
     flattener = "dataflat.{}.flattener".format(custom_flattener.name.lower())
 
     if (from_case is None) or (to_case is None):
-        logger.warning(f"One or both paramaters (from_case,to_case) are None, no translation will be applied.")
+        logger.warning("One or both parameters (from_case,to_case) are None, no translation will be applied.")
         case_translator = None
     elif from_case.name == to_case.name:
-        logger.warning(f"from_case and to_case are the same, no translation will be applied.")
+        logger.warning("from_case and to_case are the same, no translation will be applied.")
         case_translator = None
     elif from_case.name == "LOWER_CASE":
         logger.warning(f"Is impossible to translate from LOWER_CASE to {to_case.name}, no translation will be applied.")
@@ -72,4 +72,7 @@ def handler(
     else:
         case_translator = CustomCaseTranslator(from_case, to_case, remove_special_chars)
 
-    return getattr(import_module(flattener), 'CustomFlattener')(case_translator, replace_string)
+    return getattr(import_module(flattener), 'CustomFlattener')(
+        case_translator=case_translator,
+        replace_string=replace_string
+    )

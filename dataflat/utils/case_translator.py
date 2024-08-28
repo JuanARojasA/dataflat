@@ -1,11 +1,11 @@
-'''
+"""
 dataflat/utils/case_translator.py - The case translator script for strings
 
-Copyright (C) 2023 Juan ROJAS
+Copyright (C) 2024 Juan ROJAS
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
-    http://www.apache.org/licenses/LICENSE-2.0
+    https://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
@@ -15,23 +15,27 @@ limitations under the License.
 
 Authors:
     Juan ROJAS <jarojasa97@gmail.com>
-'''
+"""
 
 import enum
 import re
-from dataflat.commons import init_logger
-from typeguard import typechecked
 from typing import List
+
+from typeguard import typechecked
+
+from dataflat.commons import init_logger
 
 logger = init_logger(__name__)
 
-class CaseTranslatorOptions(enum.Enum): # Possible values
+
+class CaseTranslatorOptions(enum.Enum):     # Possible values
     SNAKE_CASE = {"id": 1, "split_string": "_"}
     KEBAB_CASE = {"id": 2, "split_string": "-"}
     CAMEL_CASE = {"id": 3, "split_string": " "}
     PASCAL_CASE = {"id": 4, "split_string": " "}
     HUMAN_READABLE = {"id": 5, "split_string": " "}
     LOWER_CASE = {"id": 6, "split_string": " "}
+
 
 @typechecked
 class CustomCaseTranslator:
@@ -67,10 +71,9 @@ class CustomCaseTranslator:
 
         # Remove extra spaces around special characters and condense multiple spaces
         conv_string = re.sub(r'\s+', ' ', conv_string).strip()
-
         return conv_string
 
-    def _normalize(self, string:str) -> List[str]:
+    def _normalize(self, string: str) -> List[str]:
         """Receive a splittable string, removes all non-alphanumerical or underscore
         characters, and return a list of the processed words in the string
 
@@ -83,9 +86,9 @@ class CustomCaseTranslator:
         string: str
         """
         replaced_strings = string.split(self.from_case.value['split_string'])
-        return [replaced_string.lower() for replaced_string in replaced_strings if replaced_string!=""]
+        return [replaced_string.lower() for replaced_string in replaced_strings if replaced_string != ""]
 
-    def _kebab_case(self, string:str) -> str:
+    def _kebab_case(self, string: str) -> str:
         """Receive a string and convert it to kebab-case
 
         Parameters
@@ -98,7 +101,7 @@ class CustomCaseTranslator:
         """
         return "-".join(self._normalize(string))
 
-    def _snake_case(self, string:str) -> str:
+    def _snake_case(self, string: str) -> str:
         """Receive a string and convert it to snake_case
 
         Parameters
@@ -111,7 +114,7 @@ class CustomCaseTranslator:
         """
         return "_".join(self._normalize(string))
 
-    def _camel_case(self, string:str) -> str:
+    def _camel_case(self, string: str) -> str:
         """Receive a string and convert it to camelCase
 
         Parameters
@@ -122,9 +125,9 @@ class CustomCaseTranslator:
         -------
         string: str
         """
-        return "".join([word.capitalize() if index>0 else word for index, word in enumerate(self._normalize(string))])
+        return "".join([word.capitalize() if index > 0 else word for index, word in enumerate(self._normalize(string))])
 
-    def _pascal_case(self, string:str) -> str:
+    def _pascal_case(self, string: str) -> str:
         """Receive a string and convert it to PascalCase
 
         Parameters
@@ -137,7 +140,7 @@ class CustomCaseTranslator:
         """
         return "".join([word.capitalize() for word in self._normalize(string)])
     
-    def _lower_case (self, string:str) -> str:
+    def _lower_case(self, string: str) -> str:
         """Receive a string and convert it to lowercase
 
         Parameters
@@ -150,7 +153,7 @@ class CustomCaseTranslator:
         """
         return "".join(self._normalize(string)).lower()
 
-    def _human_readable (self, string:str) -> str:
+    def _human_readable(self, string: str) -> str:
         """Receive a string and convert it to Human readable
 
         Parameters
@@ -161,9 +164,11 @@ class CustomCaseTranslator:
         -------
         string: str
         """
-        return " ".join([word if index>0 else word.capitalize() for index, word in enumerate(self._normalize(string))])
+        return " ".join(
+            [word if index > 0 else word.capitalize() for index, word in enumerate(self._normalize(string))]
+        )
     
-    def translate(self, string:str) -> str:
+    def translate(self, string: str) -> str:
         """Receive a string and convert it to the
         desirable case.
 
@@ -177,6 +182,6 @@ class CustomCaseTranslator:
         """
         if self.remove_special_chars:
             string = re.sub(r'\W+', "", string)
-        if self.from_case.name in ('CAMEL_CASE','PASCAL_CASE'):
+        if self.from_case.name in ('CAMEL_CASE', 'PASCAL_CASE'):
             string = self._pre_process_string(string)
         return getattr(self, f"_{self.to_case.name.lower()}")(string)

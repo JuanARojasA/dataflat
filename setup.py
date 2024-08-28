@@ -1,11 +1,11 @@
-'''
+"""
 setup.py - a setup script
 
 Copyright (C) 2023 Juan ROJAS
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
-    http://www.apache.org/licenses/LICENSE-2.0
+    https://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
@@ -15,7 +15,7 @@ limitations under the License.
 
 Authors:
     Juan ROJAS <jarojasa97@gmail.com>
-'''
+"""
 
 import setuptools
 from codecs import open
@@ -53,6 +53,6 @@ setuptools.setup(
             'Topic :: Utilities'
         ],
     python_requires='>=3.9',
-    install_requires=["pandas","typeguard"],
+    install_requires=["pandas", "typeguard"],
     include_package_data=True
 )

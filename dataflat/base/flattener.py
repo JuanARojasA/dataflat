@@ -1,27 +1,31 @@
+"""
+dataflat/base/flattener.py - The Base class for the dataflat library
+
+Copyright (C) 2024 Juan ROJAS
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+    https://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+
+Authors:
+    Juan ROJAS <jarojasa97@gmail.com>
+"""
+
 from dataclasses import dataclass
-from dataflat.utils.case_translator import CustomCaseTranslator
 from typing import Optional
+
+from dataflat.utils.case_translator import CustomCaseTranslator
+
 
 @dataclass
 class BaseFlattener:
-    """
-    Base class for Flattener Common interface for every CustomFlattener type.
-
-    Parameters
-    ----------
-    entity_name : str (default = "data")
-        Entity name of the data
-
-    primary_key : str (default = "id")
-        Primary key of the data
-
-    replace_string : str (default = ".")
-        String used to separate nested data
-
-    heritable_keys : list[str] (default = None)
-        Keys or columns to be inherited
-    """
-    entity_name: str = "data"
-    primary_key: str = "id"
-    replace_string: str = "."
-    heritable_keys: Optional[list[str]] = None
+    case_translator: Optional[CustomCaseTranslator] = None
+    replace_string: Optional[str] = "."
+    entity_name: Optional[str] = "data"
+    primary_key: Optional[str] = "id"
