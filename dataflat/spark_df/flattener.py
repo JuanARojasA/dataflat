@@ -16,6 +16,7 @@ limitations under the License.
 Authors:
     Juan ROJAS <jarojasa97@gmail.com>
 """
+
 import re
 from collections import defaultdict
 from typing import Any, Optional
@@ -31,15 +32,15 @@ from dataflat.utils.string import dot_join_args
 
 
 def _add_backticks_if_special_char(string: str):
-    pattern = re.compile(r'[.!@]')
-    string = f'`{string}`' if pattern.search(string) else string
+    pattern = re.compile(r"[.!@]")
+    string = f"`{string}`" if pattern.search(string) else string
     return string
 
 
 def _split_field_if_special_char(field: str) -> str:
-    split = field.split('.')
+    split = field.split(".")
     field = _add_backticks_if_special_char(split[-1])
-    return '.'.join([*split[:-1], field])
+    return ".".join([*split[:-1], field])
 
 
 logger = init_logger(__name__)
@@ -51,13 +52,13 @@ class CustomFlattener(BaseFlattener):
     spark: SparkSession = SparkSession.getActiveSession()
 
     def __set__(
-            self,
-            primary_key: str,
-            entity_name: Optional[str] = None,
-            partition_keys: Optional[list[str]] = None,
-            black_list: Optional[list[str]] = None,
-            case_translator: Optional[CustomCaseTranslator] = None,
-            replace_string: Optional[str] = None
+        self,
+        primary_key: str,
+        entity_name: Optional[str] = None,
+        partition_keys: Optional[list[str]] = None,
+        black_list: Optional[list[str]] = None,
+        case_translator: Optional[CustomCaseTranslator] = None,
+        replace_string: Optional[str] = None,
     ):
 
         self.primary_key = primary_key if primary_key else self.primary_key
@@ -74,24 +75,29 @@ class CustomFlattener(BaseFlattener):
     def _process_strings(self, string: str):
         if self.case_translator is not None:
             return self.replace_string.join(
-                [self.case_translator.translate(sub_string) for sub_string in string.split('.') if string != ""]
+                [
+                    self.case_translator.translate(sub_string)
+                    for sub_string in string.split(".")
+                    if string != ""
+                ]
             )
-        return self.replace_string.join(string.split('.'))
+        return self.replace_string.join(string.split("."))
 
     def _apply_column_translate(self):
         if (self.replace_string != ".") or (self.case_translator is not None):
             translated_dfs = {}
             for df_name, df in self._flattened_dataframes.items():
                 select_expr = [
-                    f"`{col}` `{self._process_strings(col)}`"
-                    for col in df.columns
+                    f"`{col}` `{self._process_strings(col)}`" for col in df.columns
                 ]
                 df = df.selectExpr(*select_expr)
                 fixed_df_name = self._process_strings(df_name)
                 translated_dfs[fixed_df_name] = df
             self._flattened_dataframes = translated_dfs
 
-    def _generate_select_query(self, table_name: str, source_table: str, heritable_fields: list[str]) -> str:
+    def _generate_select_query(
+        self, table_name: str, source_table: str, heritable_fields: list[str]
+    ) -> str:
         return (
             f"SELECT {', '.join(
                 [f'{_split_field_if_special_char(field)} AS `{field}`' if '.' in field 
@@ -107,40 +113,55 @@ class CustomFlattener(BaseFlattener):
     def _get_heritable_fields(self, source_table: str) -> list[str]:
         if source_table not in self._heritable_fields:
             self._heritable_fields[source_table].extend(
-                [field for field in list(self._flattened_dataframes[source_table].columns) if field.endswith("index")])
+                [
+                    field
+                    for field in list(self._flattened_dataframes[source_table].columns)
+                    if field.endswith("index")
+                ]
+            )
         return self._heritable_fields[source_table]
 
-    def _get_nested_struct(self, schema: dict[str, Any], df_name: str, schema_ref: str) -> None:
+    def _get_nested_struct(
+        self, schema: dict[str, Any], df_name: str, schema_ref: str
+    ) -> None:
         selected_fields = []
         fields = [
-            field for field in schema['fields']
+            field
+            for field in schema["fields"]
             if not any(
-                dot_join_args(df_name, schema_ref, field['name']).endswith(item) for item in self.black_list
+                dot_join_args(df_name, schema_ref, field["name"]).endswith(item)
+                for item in self.black_list
             )
         ]
         for field in fields:
             try:
-                nested_field = field['type']
-                if nested_field['type'] == "struct":
-                    self._get_nested_struct(nested_field, df_name, dot_join_args(schema_ref, field['name']))
-                elif nested_field['type'] == "array":
-                    self._relations[dot_join_args(df_name, schema_ref, field['name'])] = df_name
-                    fixed_field_name = dot_join_args("", schema_ref, field['name'])
+                nested_field = field["type"]
+                if nested_field["type"] == "struct":
+                    self._get_nested_struct(
+                        nested_field, df_name, dot_join_args(schema_ref, field["name"])
+                    )
+                elif nested_field["type"] == "array":
+                    self._relations[
+                        dot_join_args(df_name, schema_ref, field["name"])
+                    ] = df_name
+                    fixed_field_name = dot_join_args("", schema_ref, field["name"])
                     selected_fields.append(fixed_field_name)
-                    if isinstance(nested_field['elementType'], dict):
+                    if isinstance(nested_field["elementType"], dict):
                         self._get_nested_struct(
-                            nested_field['elementType'],
-                            dot_join_args(df_name, schema_ref, field['name']),
-                            ""
+                            nested_field["elementType"],
+                            dot_join_args(df_name, schema_ref, field["name"]),
+                            "",
                         )
                     else:
-                        self._flattened_schemas[dot_join_args(df_name, schema_ref, field['name'])] = []
+                        self._flattened_schemas[
+                            dot_join_args(df_name, schema_ref, field["name"])
+                        ] = []
                 else:
                     raise FlatteningException(
                         f"{nested_field['type']} is not supported, field {field['name']} will not be processed."
                     )
             except (TypeError, FlatteningException):
-                fixed_field_name = dot_join_args("", schema_ref, field['name'])
+                fixed_field_name = dot_join_args("", schema_ref, field["name"])
                 selected_fields.append(fixed_field_name)
         try:
             self._flattened_schemas[df_name].extend(selected_fields)
@@ -148,8 +169,12 @@ class CustomFlattener(BaseFlattener):
             self._flattened_schemas.update({df_name: selected_fields})
 
     def _processor(
-            self, source_table: str, partition_keys: list[str], heritable_fields: list[str],
-            target_table: str, explode_field: str
+        self,
+        source_table: str,
+        partition_keys: list[str],
+        heritable_fields: list[str],
+        target_table: str,
+        explode_field: str,
     ) -> list[str]:
         rename_heritable_fields_query = (
             f"{self.primary_key} AS `{self.entity_name}.{self.primary_key}`, "
@@ -162,7 +187,11 @@ class CustomFlattener(BaseFlattener):
             f"{', '.join([f'`{self.entity_name}.{partition_key}`' for partition_key in partition_keys])}"
         )
 
-        fields = rename_heritable_fields_query if source_table == self.entity_name else select_heritable_fields_query
+        fields = (
+            rename_heritable_fields_query
+            if source_table == self.entity_name
+            else select_heritable_fields_query
+        )
         if heritable_fields:
             fields += f", {', '.join(
                 [f'`{heritable_field}`' if heritable_field != 'index' 
@@ -171,7 +200,7 @@ class CustomFlattener(BaseFlattener):
                  ]
             )}"
         explode = True if self._flattened_schemas[target_table] else False
-        exploded_field = explode_field.split('.')[-1]
+        exploded_field = explode_field.split(".")[-1]
         query = (
             f"SELECT * FROM (SELECT {fields}, POSEXPLODE(`{explode_field}`) "
             f"AS (index, {exploded_field}) FROM `{source_table}`)"
@@ -179,27 +208,33 @@ class CustomFlattener(BaseFlattener):
         temp = self.spark.sql(query)
         heritable_fields = list(temp.columns)
         if explode:
-            temp = temp.select('*', f'{exploded_field}.*')
+            temp = temp.select("*", f"{exploded_field}.*")
             heritable_fields.remove(exploded_field)
         temp = temp.drop(exploded_field) if explode else temp
-        temp.createOrReplaceTempView('temp')
+        temp.createOrReplaceTempView("temp")
         return heritable_fields
 
     def transform(
-            self,
-            dataframe: DataFrame,
-            primary_key: str,
-            entity_name: Optional[str] = None,
-            partition_keys: Optional[list[str]] = None,
-            black_list: Optional[list[str]] = None
+        self,
+        dataframe: DataFrame,
+        primary_key: str,
+        entity_name: Optional[str] = None,
+        partition_keys: Optional[list[str]] = None,
+        black_list: Optional[list[str]] = None,
     ) -> dict[str, DataFrame]:
         self.__set__(primary_key, entity_name, partition_keys, black_list)
         dataframe.createOrReplaceTempView(entity_name)
         self._get_nested_struct(dataframe.schema.jsonValue(), self.entity_name, "")
-        sorted_dataframes = sorted(list(self._flattened_schemas.keys()), key=lambda k: k.split('.'))
+        sorted_dataframes = sorted(
+            list(self._flattened_schemas.keys()), key=lambda k: k.split(".")
+        )
 
         for table_name in sorted_dataframes:
-            parent_table = self._relations[table_name] if table_name in self._relations else self.entity_name
+            parent_table = (
+                self._relations[table_name]
+                if table_name in self._relations
+                else self.entity_name
+            )
             explode_col: str = table_name.removeprefix(f"{parent_table}.")
             source_table = table_name if table_name == self.entity_name else "temp"
             heritable_fields = []
@@ -207,20 +242,31 @@ class CustomFlattener(BaseFlattener):
             if table_name != self.entity_name:
                 source_table = "temp"
                 heritable_fields = self._processor(
-                    parent_table, self.partition_keys,
-                    self._get_heritable_fields(parent_table), table_name, explode_col
+                    parent_table,
+                    self.partition_keys,
+                    self._get_heritable_fields(parent_table),
+                    table_name,
+                    explode_col,
                 )
-                heritable_fields = [f'`{field}`' if '.' in field else field for field in heritable_fields]
-            select_query = self._generate_select_query(table_name, source_table, heritable_fields)
+                heritable_fields = [
+                    f"`{field}`" if "." in field else field
+                    for field in heritable_fields
+                ]
+            select_query = self._generate_select_query(
+                table_name, source_table, heritable_fields
+            )
             temp = self.spark.sql(select_query)
             self._flattened_dataframes[table_name] = self.spark.createDataFrame(
-                data=temp.rdd,
-                schema=temp.schema
+                data=temp.rdd, schema=temp.schema
             )
-            self._flattened_dataframes[table_name].createOrReplaceTempView(f"`{table_name}`")
+            self._flattened_dataframes[table_name].createOrReplaceTempView(
+                f"`{table_name}`"
+            )
             temp.unpersist()
             if explode_col and table_name != self.entity_name:
-                self._flattened_dataframes[parent_table] = self._flattened_dataframes[parent_table].drop(explode_col)
+                self._flattened_dataframes[parent_table] = self._flattened_dataframes[
+                    parent_table
+                ].drop(explode_col)
 
         self._apply_column_translate()
         return self._flattened_dataframes

@@ -7,4 +7,3 @@ __pycache__
 bdist.macosx*
 dist*
 lib
-dataflat.egg-info
