@@ -25,12 +25,12 @@ def test_flattener_with_parameters():
 
 
 def test_flattener_with_entity_name():
-    entity_name = "test"
+    entity_name = "tests"
     base = BaseFlattener(entity_name=entity_name)
     assert base.entity_name == entity_name
 
 
 def test_flattener_with_primary_key():
-    primary_key = "test"
+    primary_key = "tests"
     base = BaseFlattener(primary_key=primary_key)
     assert base.primary_key == primary_key

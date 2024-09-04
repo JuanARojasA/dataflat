@@ -8,4 +8,4 @@
 
 ### Refactor
 
-- **dictionary/flattener.py**: fix sonarcloud issue
+- **dictionary/flattener.py**: fix sonarcloud issue with function complexity
