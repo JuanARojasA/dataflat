@@ -35,6 +35,12 @@ Repository = "https://github.com/JuanARojasA/dataflat.git"
 Issues = "https://github.com/JuanARojasA/dataflat/issues"
 Changelog = "https://github.com/JuanARojasA/dataflat/blob/master/CHANGELOG.md"
 
+[project.optional-dependencies]
+test = [
+    "coverage==7.6.1",
+    "pytest==8.3.2"
+]
+
 [tool.commitizen]
 name = "cz_conventional_commits"
 tag_format = "v$version"
