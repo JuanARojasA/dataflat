@@ -214,17 +214,17 @@ class CustomFlattener(BaseFlattener):
         temp.createOrReplaceTempView("temp")
         return heritable_fields
 
-    def transform(
+    def flatten(
         self,
-        dataframe: DataFrame,
+        data: DataFrame,
         primary_key: str,
         entity_name: Optional[str] = None,
         partition_keys: Optional[list[str]] = None,
         black_list: Optional[list[str]] = None,
     ) -> dict[str, DataFrame]:
         self.__set__(primary_key, entity_name, partition_keys, black_list)
-        dataframe.createOrReplaceTempView(entity_name)
-        self._get_nested_struct(dataframe.schema.jsonValue(), self.entity_name, "")
+        data.createOrReplaceTempView(entity_name)
+        self._get_nested_struct(data.schema.jsonValue(), self.entity_name, "")
         sorted_dataframes = sorted(
             list(self._flattened_schemas.keys()), key=lambda k: k.split(".")
         )

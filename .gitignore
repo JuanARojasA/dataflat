@@ -1,7 +1,8 @@
 .idea
 
 __pycache__
-*test*
+*test.ipynb*
+*test.json*
 *.zip
 *.DS_Store
 bdist.macosx*

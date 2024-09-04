@@ -19,7 +19,7 @@ Authors:
 
 import re
 from collections import defaultdict
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 from typeguard import typechecked
 
@@ -31,7 +31,7 @@ from dataflat.utils.string import dot_join_args
 logger = init_logger(__name__)
 
 
-def _split_and_dict(string: str) -> Dict[str, str]:
+def _split_and_dict(string: str) -> dict[str, str]:
     pattern = re.compile(r"(\._\d+_)")
     parts = pattern.split(string)
     result_dict = {
@@ -48,8 +48,8 @@ class CustomFlattener(BaseFlattener):
         self,
         primary_key: str,
         entity_name: Optional[str] = None,
-        partition_keys: Optional[List[str]] = None,
-        black_list: Optional[List[str]] = None,
+        partition_keys: Optional[list[str]] = None,
+        black_list: Optional[list[str]] = None,
         case_translator: Optional[CustomCaseTranslator] = None,
         replace_string: Optional[str] = None,
     ) -> None:
@@ -64,7 +64,7 @@ class CustomFlattener(BaseFlattener):
         self._temp_dict = defaultdict(dict)
         self._flatten_dict = defaultdict(list)
 
-    def _set_heritable_fields(self, dictionary: Dict[str, Any]) -> None:
+    def _set_heritable_fields(self, dictionary: dict[str, Any]) -> None:
         self._heritable_fields = {
             dot_join_args(self.entity_name, self.primary_key): dictionary[
                 self.primary_key
@@ -86,7 +86,7 @@ class CustomFlattener(BaseFlattener):
             )
         return self.replace_string.join(string.split("."))
 
-    def _apply_translate(self, dictionary: Dict[str, Any]) -> Dict[str, Any]:
+    def _apply_translate(self, dictionary: dict[str, Any]) -> dict[str, Any]:
         if (self.replace_string != ".") or (self.case_translator is not None):
             keys = list(dictionary.keys())
             for key in keys:
@@ -133,7 +133,7 @@ class CustomFlattener(BaseFlattener):
                 ] = dict_item
 
     def _processor(
-        self, dictionary: Dict[str, Any], dict_name: str, schema_ref: str
+        self, dictionary: dict[str, Any], dict_name: str, schema_ref: str
     ) -> None:
         for key, value in dictionary.items():
             if value is not None and value != [] and value != "":
@@ -144,22 +144,20 @@ class CustomFlattener(BaseFlattener):
                 else:
                     self._temp_dict[dict_name][dot_join_args(schema_ref, key)] = value
 
-    def transform(
+    def flatten(
         self,
-        dictionary: Dict[str, Any],
+        data: dict[str, Any],
         primary_key: str,
         entity_name: Optional[str] = None,
-        partition_keys: Optional[List[str]] = None,
-        black_list: Optional[List[str]] = None,
-    ) -> Dict[str, Dict | List[Dict]]:
+        partition_keys: Optional[list[str]] = None,
+        black_list: Optional[list[str]] = None,
+    ) -> dict[str, list[dict[str, Any]]]:
         self.__set__(primary_key, entity_name, partition_keys, black_list)
-        dct = dictionary.copy()
+        dct = data.copy()
         self._set_heritable_fields(dct)
-        dct[dot_join_args(self.entity_name, primary_key)] = dictionary[primary_key]
+        dct[dot_join_args(self.entity_name, primary_key)] = data[primary_key]
         for partition_key in self.partition_keys:
-            dct[dot_join_args(self.entity_name, partition_key)] = dictionary[
-                partition_key
-            ]
+            dct[dot_join_args(self.entity_name, partition_key)] = data[partition_key]
         self._processor(dct, self.entity_name, "")
         self._fix_nested_list()
         return self._flatten_dict

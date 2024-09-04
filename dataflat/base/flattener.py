@@ -18,7 +18,7 @@ Authors:
 """
 
 from dataclasses import dataclass
-from typing import Optional
+from typing import Any, Optional
 
 from dataflat.utils.case_translator import CustomCaseTranslator
 
@@ -29,3 +29,13 @@ class BaseFlattener:
     replace_string: Optional[str] = "."
     entity_name: Optional[str] = "data"
     primary_key: Optional[str] = "id"
+
+    def flatten(
+        self,
+        data: Any,
+        primary_key: str,
+        entity_name: Optional[str] = None,
+        partition_keys: Optional[list[str]] = None,
+        black_list: Optional[list[str]] = None,
+    ) -> None:
+        return None

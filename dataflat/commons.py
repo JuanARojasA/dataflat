@@ -23,9 +23,9 @@ from typeguard import typechecked
 
 
 @typechecked
-def init_logger(file_name: str, log_level: str = None):
+def init_logger(file_name: str, log_level: str | None = None):
     if not log_level:
-        log_level = 'INFO'
+        log_level = "INFO"
     logging.basicConfig()
     logger = logging.getLogger(file_name)
     logger.setLevel(getattr(logging, log_level))
