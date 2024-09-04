@@ -19,11 +19,12 @@ Authors:
 
 import logging
 
+from typing import Optional
 from typeguard import typechecked
 
 
 @typechecked
-def init_logger(file_name: str, log_level: str | None = None):
+def init_logger(file_name: str, log_level: Optional[str] = None):
     if not log_level:
         log_level = "INFO"
     logging.basicConfig()
