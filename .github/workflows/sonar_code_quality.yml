@@ -6,7 +6,29 @@ on:
         required: true
 
 jobs:
+  tests:
+    name: Testing
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set up Python
+        uses: actions/setup-python@v3
+        with:
+          python-version: '3.9'
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install coverage pytest
+      - name: Run tests and generate coverage report
+        run: |
+          coverage run -m pytest
+          coverage xml
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v3
+        with:
+          name: coverage-report
+          path: coverage.xml
   sonarcloud:
+    needs: [tests]
     name: SonarCloud
     runs-on: ubuntu-latest
     steps:
