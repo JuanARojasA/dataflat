@@ -20,6 +20,8 @@ jobs:
           pip install coverage pytest
       - name: Run tests and generate coverage report
         run: |
+          ls -ltra
+          pwd
           coverage run -m pytest
           coverage xml
       - name: Upload coverage report
