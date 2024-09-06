@@ -39,9 +39,9 @@ def get_full_path():
 @fixture(scope="function")
 def compare_result():
     def _compare_result(result: str, expected_result_filepath: str):
-        result_md5 = hashlib.md5(result.encode("utf-8")).hexdigest()
+        result_md5 = hashlib.sha256(result.encode("utf-8")).hexdigest()
         with open(expected_result_filepath, "rb") as f:
-            expected_result_md5 = hashlib.md5(f.read()).hexdigest()
+            expected_result_md5 = hashlib.sha256(f.read()).hexdigest()
         return result_md5 == expected_result_md5
 
     return _compare_result
