@@ -1,11 +1,11 @@
-'''
+"""
 dataflat/exceptions.py - an exception classes script
 
 Copyright (C) 2023 Juan ROJAS
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
-    http://www.apache.org/licenses/LICENSE-2.0
+    https://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
@@ -15,8 +15,9 @@ limitations under the License.
 
 Authors:
     Juan ROJAS <jarojasa97@gmail.com>
-'''
+"""
 from typeguard import typechecked
+
 
 @typechecked
 class FlatteningException(Exception):
@@ -27,6 +28,6 @@ class FlatteningException(Exception):
         message : str
             Explanation of the error.
     """
-    def __init__(self, message:str):
+    def __init__(self, message: str):
         self.message = message
         super().__init__(self.message)
