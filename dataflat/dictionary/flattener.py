@@ -1,11 +1,11 @@
-'''
+"""
 dataflat/dictionary/flattener.py - The processor script for dictionaries flattening process
 
-Copyright (C) 2023 Juan ROJAS
+Copyright (C) 2024 Juan ROJAS
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
-    http://www.apache.org/licenses/LICENSE-2.0
+    https://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
@@ -15,180 +15,165 @@ limitations under the License.
 
 Authors:
     Juan ROJAS <jarojasa97@gmail.com>
-'''
+"""
 
 import re
-from typeguard import typechecked
-from typing import Tuple, List, Any, Union
-from dataflat.commons import init_logger
-from dataflat.exceptions import FlatteningException
-from dataflat.utils.case_translator import CustomCaseTranslator
+from collections import defaultdict
+from typing import Any, Optional
 
+from typeguard import typechecked
+
+from dataflat.base.flattener import BaseFlattener
+from dataflat.commons import init_logger
+from dataflat.utils.case_translator import CustomCaseTranslator
+from dataflat.utils.string import dot_join_args
 
 logger = init_logger(__name__)
 
+
 @typechecked
-class CustomFlattener():
-    def __init__(self, case_translator:CustomCaseTranslator, replace_dots:bool):
-        logger.info("CustomFlattener for Python Dictionaries has been initiated")
-        self._case_translator = case_translator
-        self._reference_separator = "_" if replace_dots else "."
+class CustomFlattener(BaseFlattener):
+    logger.info("CustomFlattener for Python Dictionaries has been initiated")
 
+    def __set__(
+        self,
+        primary_key: Optional[str] = None,
+        entity_name: Optional[str] = None,
+        partition_keys: Optional[list[str]] = None,
+        black_list: Optional[list[str]] = None,
+        case_translator: Optional[CustomCaseTranslator] = None,
+        replace_string: Optional[str] = None,
+    ) -> None:
+        self.primary_key = primary_key if primary_key else self.primary_key
+        self.entity_name = entity_name if entity_name else self.entity_name
+        self.partition_keys = partition_keys if partition_keys else []
+        self.black_list = black_list if black_list is not None else []
+        self.case_translator = (
+            case_translator if case_translator else self.case_translator
+        )
+        self.replace_string = replace_string if replace_string else self.replace_string
+        self.__temp_dict = defaultdict(dict)
+        self.__flatten_dict = defaultdict(list)
 
-    def _replace_dots(self, string:str):
-        """Receive a String, and replace the '.' in name with '_'
-        Parameters
-        ----------
-        string: str
-            The string to be processed.
-        Returns
-        -------
-        replaced_string: str
-        """
-        if self._reference_separator != ".":
-            string = string.replace(".", self._reference_separator)
-            string = re.sub(f"\\{self._reference_separator}\\{self._reference_separator}+", self._reference_separator, string)
-        return string
+    @staticmethod
+    def __split_and_dict(string: str) -> dict[str, str]:
+        pattern = re.compile(r"(\._\d+_)")
+        parts = pattern.split(string)
+        result_dict = {
+            parts[i - 1].lstrip("."): parts[i][2:-1] for i in range(1, len(parts), 2)
+        }
+        return result_dict
 
+    def __set_heritable_fields(self, dictionary: dict[str, Any]) -> None:
+        self._heritable_fields = {
+            dot_join_args(self.entity_name, self.primary_key): dictionary[
+                self.primary_key
+            ]
+        }
+        for partition_key in self.partition_keys:
+            self._heritable_fields[dot_join_args(self.entity_name, partition_key)] = (
+                dictionary[partition_key]
+            )
 
-    def _insert_child_record(self, processed_data:dict, json_name:str, key_ref:str, value:Any,
-                             nested_index:Union[None,int]=None,
-                             parent_index:Union[Tuple[None,None], Tuple[str,None], Tuple[str,int]]=(None,None)):
-        """Receive a processed_data dictionary and add new key-value pairs to a nested dictionary in processed_data
-        using the json_name and the parent and nested index.
-        Parameters
-        ----------
-        processed_data: dict
-            The dictionary of processed dictionaries, where the key-value pair will be added
-        json_name: str
-            The processed dictionary name
-        key_ref: str
-            The key name to be added
-        value: Any
-            The value to be added on key_ref
-        nested_index: int
-            If the current key-value was inside a list, this value reference the item position in the list
-        parent_index: Tuple[str, int]
-            Reference to the name and index of the parent dictionary, in case the key-value was a 
-            parameter of a dictionary on list in another list.
-        Returns
-        -------
-        processed_data: dict
-        """
-        if nested_index is not None:
-            if parent_index[1] is not None:
-                parent_index_name = f"{parent_index[0]}{self._reference_separator}index"
-                if processed_data[json_name]:
-                    try:
-                        if processed_data[json_name][parent_index[1]]:
-                            try:
-                                processed_data[json_name][parent_index[1]][nested_index][key_ref] = value
-                            except:
+    def __process_strings(self, string: str) -> str:
+        if self.case_translator is not None:
+            return self.replace_string.join(
+                [
+                    self.case_translator.translate(sub_string)
+                    for sub_string in string.split(".")
+                    if string != ""
+                ]
+            )
+        return self.replace_string.join(string.split("."))
 
-                                processed_data[json_name][parent_index[1]].append({parent_index_name:parent_index[1],key_ref:value})
-                        else:
-                            processed_data[json_name][parent_index[1]] = [{parent_index_name:parent_index[1],key_ref:value}]
-                    except Exception as e:
-                        processed_data[json_name].update({parent_index[1]:[{parent_index_name:parent_index[1],key_ref:value}]})
-                else:
-                    processed_data[json_name] = {}
-                    processed_data[json_name].update({parent_index[1]:[{parent_index_name:parent_index[1],key_ref:value}]})
+    def __apply_translate(self, dictionary: dict[str, Any]) -> dict[str, Any]:
+        if (self.replace_string != ".") or (self.case_translator is not None):
+            keys = list(dictionary.keys())
+            for key in keys:
+                fixed_key = self.__process_strings(key)
+                dictionary[fixed_key] = dictionary.pop(key)
+        return dictionary
+
+    def __fix_nested_list(self) -> None:
+        dict_names = list(self.__temp_dict.keys())
+        for dict_name in dict_names:
+            index_keys = self.__split_and_dict(dict_name)
+            aux = self.__apply_translate(self.__temp_dict.pop(dict_name))
+            fixed_dict_name = dict_name
+            if index_keys:
+                aux.update(self._heritable_fields)
+                last_key, last_value = index_keys.popitem()
+                trailing_index_key = ""
+                for index_key, index_value in index_keys.items():
+                    trailing_index_key = dot_join_args(trailing_index_key, index_key)
+                    aux[trailing_index_key + self.replace_string + "index"] = int(
+                        index_value
+                    )
+                aux["index"] = int(last_value)
+                fixed_dict_name = dot_join_args(trailing_index_key, last_key)
+            fixed_dict_name = self.__process_strings(fixed_dict_name)
+            if fixed_dict_name in self.__flatten_dict:
+                self.__flatten_dict[fixed_dict_name].append(aux)
             else:
-                try:
-                    processed_data[json_name][nested_index][key_ref] = value
-                except:
-                    if not processed_data[json_name]:
-                        processed_data[json_name] = {}
-                    processed_data[json_name].update({nested_index:{key_ref:value}})
+                self.__flatten_dict[fixed_dict_name] = [aux]
+
+    def __process_list(self, key: str, value: list, dict_name: str, schema_ref: str):
+        if isinstance(value[0], dict):
+            for index, item in enumerate(value):
+                self.__processor(
+                    item,
+                    dot_join_args(dict_name, schema_ref, key, f"_{str(index)}_"),
+                    "",
+                )
         else:
-            try:
-                processed_data[json_name][key_ref] = value
-            except:
-                processed_data[json_name] = [{key_ref:value}]
-        return processed_data
+            for index, item in enumerate(value):
+                dict_item = {key: item}
+                self.__temp_dict[
+                    dot_join_args(dict_name, schema_ref, key, f"_{str(index)}_")
+                ] = dict_item
 
-
-    def _processor(self, data:Any, json_name:str, ref:str="", processed_data:dict={}, 
-                   nested_index:Union[None,int]=None,
-                   parent_index:Union[Tuple[None,None], Tuple[str,None], Tuple[str,int]]=(None,None)):
-        """Receive a List or Dictionary data to be flattened, a black list used to skip the keys of a dictionary, a json_name
-        used as reference in case there are a nested list to be flattened in the process.
-        ----------
-        data: Any
-            The dictionary or List to be flattened
-        black_list: List[str]
-            A list of keys to be skipped on flattening process
-        json_name: str
-            The current processed dictionary name
-        Returns
-        -------
-        processed_data: dict
-        """
-        processed_data[json_name] = {} if json_name not in processed_data else processed_data[json_name]
-        if isinstance(data, dict):
-            for key, value in data.items():
-                if key not in self._black_list:
-                    key_name = self._case_translator.translate(key)
-                    key_ref = f"{ref}.{key_name}" if ref!="" else key_name
-                    key_ref = self._replace_dots(key_ref)
-                    if isinstance(value, dict):
-                        self._processor(value, json_name, key_ref, processed_data, nested_index, parent_index)
-                    elif type(value) in (list, tuple):
-                        nested_json_name = self._replace_dots(f"{json_name}.{key_ref}")
-                        self._processor(value, nested_json_name, "", processed_data, nested_index, (json_name, None))
-                    else:
-                        self._insert_child_record(processed_data, json_name, key_ref, value, nested_index, parent_index)
-        elif type(data) in (list, tuple):
-            if nested_index is not None:
-                parent_index = (parent_index[0], nested_index)
-            for index, item in enumerate(data):
-                if isinstance(item, dict):
-                    self._processor(item, json_name, "", processed_data, index, parent_index)
+    def __processor(
+        self, dictionary: dict[str, Any], dict_name: str, schema_ref: str
+    ) -> None:
+        for key, value in dictionary.items():
+            if (
+                not any(
+                    dot_join_args(dict_name, schema_ref, key).endswith(item)
+                    for item in self.black_list
+                )
+                and value is not None
+                and value != []
+                and value != ""
+            ):
+                if isinstance(value, dict):
+                    self.__processor(value, dict_name, dot_join_args(schema_ref, key))
+                elif isinstance(value, list):
+                    self.__process_list(key, value, dict_name, schema_ref)
                 else:
-                    processed_data = self._insert_child_record(processed_data, json_name, "value", item, index, parent_index)
-        else:
-            logger.warning(f"Non-supported data type: {type(data)} with data {data}")
-        return processed_data
+                    self.__temp_dict[dict_name][dot_join_args(schema_ref, key)] = value
 
-
-    def transform(self, json_data, id_key:str, black_list:List[str] = [], json_name:str = "json") -> dict:
-        """Receive a List or Dictionary data to be flattened, a black list used to skip the keys of a dictionary, a json_name
-        used as reference in case there are a nested list to be flattened in the process.
-        ----------
-        json_data: Any
-            The dictionary or List to be flattened
-        id_key: str
-            The 'id' key name, used to add a reference on nested lists
-        black_list: List[str]
-            A list of keys to be skipped on flattening process
-        json_name: str
-            The json name, used to add a reference key-value on nested lists
-        Returns
-        -------
-        processed_data: dict
-        """
-        if not json_data:
-            raise FlatteningException("The provided dictionary is empty.")
-        elif id_key not in json_data:
-            raise FlatteningException(f"The provided id_key={id_key} does not exist in json_data")
-        
-        self._black_list = black_list
-        self._processed_data = {}
-        json_name = self._case_translator.translate(json_name)
-        self._processed_data = self._processor(json_data, json_name, processed_data=self._processed_data)
-        for dict_name, flattened_dicts in self._processed_data.items():
-            if dict_name != json_name:
-                dict_list = []
-                parent_json_id = self._replace_dots(f"{json_name}{self._reference_separator}{id_key}" )
-                for index in flattened_dicts.keys():
-                    if isinstance(flattened_dicts[index], list):
-                        for sub_index, sub_dict in enumerate(flattened_dicts[index]):
-                            sub_dict['index'] = sub_index
-                            sub_dict[parent_json_id] = self._processed_data[json_name][id_key]
-                            dict_list.append(sub_dict)
-                    else:
-                        flattened_dicts[index]['index'] = index
-                        flattened_dicts[index][parent_json_id] = self._processed_data[json_name][id_key]
-                        dict_list.append(flattened_dicts[index])
-                self._processed_data[dict_name] = dict_list
-        return self._processed_data
+    def flatten(
+        self,
+        data: dict[str, Any],
+        primary_key: Optional[str] = None,
+        entity_name: Optional[str] = None,
+        partition_keys: Optional[list[str]] = None,
+        black_list: Optional[list[str]] = None,
+    ) -> dict[str, list[dict[str, Any]]]:
+        self.__set__(primary_key, entity_name, partition_keys, black_list)
+        tmp = data.copy()
+        self.__set_heritable_fields(tmp)
+        tmp[dot_join_args(self.entity_name, self.primary_key)] = data[self.primary_key]
+        for partition_key in self.partition_keys:
+            tmp[dot_join_args(self.entity_name, partition_key)] = data[partition_key]
+        self.__processor(tmp, self.entity_name, "")
+        self.__fix_nested_list()
+        self.__flatten_dict[self.entity_name][0].pop(
+            dot_join_args(self.entity_name, self.primary_key)
+        )
+        for partition_key in self.partition_keys:
+            self.__flatten_dict[self.entity_name][0].pop(
+                dot_join_args(self.entity_name, partition_key)
+            )
+        del tmp
+        return self.__flatten_dict

@@ -1,0 +1,59 @@
+[project]
+name = "dataflat"
+version = "2.0.0"
+description = "A library to flatten nested data."
+authors = [
+  {name = "Juan Rojas", email = "jarojasa97@gmail.com"},
+]
+requires-python = ">= 3.10"
+dependencies = ["typeguard==4.3.0"]
+keywords = ["flattening", "nested", "data", "pyspark"]
+classifiers=[
+    'Development Status :: 5 - Production/Stable',
+    'Intended Audience :: Developers',
+    'Intended Audience :: Information Technology',
+    'Intended Audience :: Science/Research',
+    'License :: OSI Approved :: Apache Software License',
+    'Natural Language :: English',
+    'Operating System :: OS Independent',
+    'Programming Language :: Python :: 3',
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    'Topic :: Scientific/Engineering',
+    'Topic :: Software Development :: Libraries',
+    'Topic :: Software Development :: Libraries :: Python Modules',
+    'Topic :: Software Development :: Pre-processors',
+    'Topic :: Utilities'
+]
+readme = "README.md"
+license = {file = "LICENSE"}
+
+[project.urls]
+Repository = "https://github.com/JuanARojasA/dataflat.git"
+Issues = "https://github.com/JuanARojasA/dataflat/issues"
+Changelog = "https://github.com/JuanARojasA/dataflat/blob/master/CHANGELOG.md"
+
+[project.optional-dependencies]
+test = [
+    "coverage==7.6.1",
+    "pytest==8.3.2",
+    "numpy==1.26.4",
+    "pandas==2.0.3",
+    "pyspark==3.5.0",
+    "testcontainers==4.8.0"
+]
+
+[tool.commitizen]
+name = "cz_conventional_commits"
+tag_format = "v$version"
+version_scheme = "pep440"
+version_provider = "pep621"
+update_changelog_on_bump = true
+bump_message = "bump: version $current_version → $new_version"
+annotated_tag = true
+
+[tool.pytest.ini_options]
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')"
+]
