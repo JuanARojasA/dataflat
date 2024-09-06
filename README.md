@@ -10,58 +10,113 @@ pip install dataflat
 ### Get started
 How to instantiate a Flattener:
 
-First import the FlattenerOptions, CaseTranslator and Flattener classes
-```Python
-from dataflat.flattener_handler import CaseTranslatorOptions, FlattenerOptions, handler
-```
-The following step is to pass the required variables to the 
+1. Import CaseTranslatorOptions, and FlattenerOptions
 
+In this step we define the case translator used to convert keys, or column names after the flattening process.
 
-The following step is assing the required variables for the flattening process.
-* reference_name: Used to assign a key name to each resulting dictionary or DataFrame from the transform function.
-* id_key: Used as identifier value in case there is any nested list, that will be exploded to a new entire dictionary or dataframe, the exploded Dataframes will have a reference to it parent Dataframe or dictionary.
-* black_list: A list of keys or columns that will be skipped during the flattening process.
-* replace_dots: Specify if the dots (used as hierarchical separator) will be replaced with underscores.
-* from_case, to_case: Specify the keys or columns current case (snake, camel...) and the desired output case for each key.
+It's necessary to select the required Flattener, for example DICTIONARY or PYSPARK_DF (more coming...)
+Secondly it's optional to select a from_case and a to_case option, for example SNAKE and CAMEL respectively.
+Finally we need to set a replace string, this is the string used to indicate the nested dependency, for example
+client.id or item.price, also we can specify if it's needed to remove special characters like '@' or '|'
+keys or column names.
 
 ```Python
+from dataflat.flattener_handler import CaseTranslatorOptions, FlattenerOptions
+
 # Default values:
 #   from_case = None
 #   to_case = None
 #   replace_string = "."
 #   remove_special_chars = False
-from_case = CaseTranslatorOptions.CAMEL
-to_case = CaseTranslatorOptions.SNAKE
+custom_flattener = FlattenerOptions.DICTIONARY
+from_case = CaseTranslatorOptions.SNAKE
+to_case = CaseTranslatorOptions.CAMEL
 replace_string = "."
 remove_special_chars = False
 ```
 
-Later, select the desired flattener from the options, according to the current type of your data (dict, pandas.DataFrame, spark.DataFrame)
+After that we can proceed to instantiate a flattener using the handler, and passing it the variables defined before, and 
+flatten some data.
+**All CustomFlattener receive the same parameters on the flatten function.**
 ```Python
-custom_flattener = FlattenerOptions.DICTIONARY
-custom_flattener = FlattenerOptions.PANDAS_DF
-custom_flattener = FlattenerOptions.SPARK_DF
-```
+from dataflat.flattener_handler import handler
 
-Finally instantiate the flattener class, and apply the transform function.
-```Python
-flattener = handler(custom_flattener, from_case, to_case)
+flattener = handler(
+    custom_flattener=custom_flattener,
+    from_case=from_case,
+    to_case=to_case,
+    replace_string=replace_string,
+    remove_special_chars=remove_special_chars
+)
 
 
 # Default values:
-#   from_case = None
-#   to_case = None
-#   replace_string = "."
-#   remove_special_chars = False
+#   entity_name = "data"
+#   primary_key = "id
+#   partition_keys = []
+#   black_list = []
+data={}
 entity_name = "data"
 primary_key = "id"
-black_list = ['keys','or','columns','to','skip']
-flattener_dict.transform(data, id_key, black_list, reference_name)
+partition_keys = ["date"]
+black_list = ['keys.or', 'columns', 'to.be.ignored']
+flatten_data = flattener.flatten(
+    data=data,
+    primary_key=primary_key, 
+    entity_name=entity_name,
+    partition_keys=partition_keys,
+    black_list=black_list
+)
+```
+* ```primary_key```: Used to connect dictionaries or dataframes with the "parent" dataframe, for example
+```id```, its required that the dictionary or dataframe contains a 'primary_key' that can be propagated to 'child'.
+* ```partition_keys```: List of keys that you must want to propagate to nested data, for example "date" key/column.
+* ```black_list```: List of keys that must me ignored/skipped during the flattening process, this keys will not be
+present on the flatten_data.
+* ```flatten_data```: A dictionary with one or multiples keys, one for the "parent" and much for the "child".
+Each list or array inside the "original" data will result on a key on this dictionary, an example of flatten_data could be:
+```json
+{
+  "data": [{"id": 1, "date": "2024-01-01", "total": 1900}],
+  "data.orders": [
+    {"id": "abc123", "total": 700, "data.id": 1, "data.date": "2024-01-01", "index": 0},
+    {"id": "dfg456", "total": 1200, "data.id": 1, "data.date": "2024-01-01", "index": 1}
+  ],
+  "data.orders.products": [
+    {"id": "ab", "price": 200, "data.id": 1, "data.date": "2024-01-01", "data.orders.index": 0, "index": 0},
+    {"id": "cd", "price": 500, "data.id": 1, "data.date": "2024-01-01", "data.orders.index": 0, "index": 1},
+    {"id": "fg", "price": 1200, "data.id": 1, "data.date": "2024-01-01", "data.orders.index": 1, "index": 0}
+  ]
+}
+```
+
+The original json that result in this data was:
+```json
+{
+  "id":  1,
+  "date": "2024-01-01",
+  "orders": [
+    {
+      "id":  "abc123",
+      "products": [
+        {"id":  "ab", "price":  200},
+        {"id":  "cd", "price":  500}
+      ],
+      "total":  700
+    },
+    {
+      "id": "dfg456",
+      "products": [
+        {"id":  "fg", "price":  1200}
+      ],
+      "total":  1200}
+  ],
+  "total":  1900
+}
 ```
 
 ### Recommendations
-1. For SPARK_DF flattener it;s recommended to set the 'caseSensitive' configuration to True on Spark.
-    On some occasions two keys can be the same, and can only be differentiated due to a capital letter.
+1. For PYSPARK_DF flattener it's recommended to set the 'caseSensitive' configuration to True on Spark.
     ```Python
         spark.conf.set('spark.sql.caseSensitive', True)
     ```
