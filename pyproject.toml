@@ -38,6 +38,7 @@ Changelog = "https://github.com/JuanARojasA/dataflat/blob/master/CHANGELOG.md"
 test = [
     "coverage==7.6.1",
     "pytest==8.3.2",
+    "numpy==1.26.4",
     "pandas==2.0.3",
     "pyspark==3.5.0",
     "testcontainers==4.8.0"
