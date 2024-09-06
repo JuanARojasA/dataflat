@@ -100,16 +100,16 @@ class CustomFlattener(BaseFlattener):
     def __generate_select_query(
         self, table_name: str, source_table: str, heritable_fields: list[str]
     ) -> str:
-        def get_columns():
-            column_list = []
+        def get_columns() -> str:
+            columns = []
             for field in self._flattened_schemas[table_name]:
                 if "." in field:
-                    column_list.append(
+                    columns.append(
                         f"{_split_field_if_special_char(field)} AS `{field}`"
                     )
                 else:
-                    column_list.append(_add_backticks_if_special_char(field))
-            return ", ".join(column_list)
+                    columns.append(_add_backticks_if_special_char(field))
+            return ", ".join(columns)
 
         return (
             f"SELECT {get_columns()} "
@@ -184,15 +184,20 @@ class CustomFlattener(BaseFlattener):
         target_table: str,
         explode_field: str,
     ) -> list[str]:
+        columns = [
+            f"{partition_key} AS `{self.entity_name}.{partition_key}`"
+            for partition_key in partition_keys
+        ]
         rename_heritable_fields_query = (
             f"{self.primary_key} AS `{self.entity_name}.{self.primary_key}`, "
-            f"{', '.join(
-                [f'{partition_key} AS `{self.entity_name}.{partition_key}`' for partition_key in partition_keys]
-            )}"
+            f"{', '.join(columns)}"
         )
+
+        columns = [
+            f"`{self.entity_name}.{partition_key}`" for partition_key in partition_keys
+        ]
         select_heritable_fields_query = (
-            f"`{self.entity_name}.{self.primary_key}`, "
-            f"{', '.join([f'`{self.entity_name}.{partition_key}`' for partition_key in partition_keys])}"
+            f"`{self.entity_name}.{self.primary_key}`, {', '.join(columns)}"
         )
 
         fields = (
@@ -201,12 +206,15 @@ class CustomFlattener(BaseFlattener):
             else select_heritable_fields_query
         )
         if heritable_fields:
-            fields += f", {', '.join(
-                [f'`{heritable_field}`' if heritable_field != 'index' 
-                    else f'{heritable_field} AS `{source_table}.{heritable_field}`' 
-                 for heritable_field in heritable_fields
-                 ]
-            )}"
+            columns = [
+                (
+                    f"`{heritable_field}`"
+                    if heritable_field != "index"
+                    else f"{heritable_field} AS `{source_table}.{heritable_field}`"
+                )
+                for heritable_field in heritable_fields
+            ]
+            fields += f", {', '.join(columns)}"
         explode = True if self._flattened_schemas[target_table] else False
         exploded_field = explode_field.split(".")[-1]
         query = (
