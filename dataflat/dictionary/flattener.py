@@ -31,15 +31,6 @@ from dataflat.utils.string import dot_join_args
 logger = init_logger(__name__)
 
 
-def _split_and_dict(string: str) -> dict[str, str]:
-    pattern = re.compile(r"(\._\d+_)")
-    parts = pattern.split(string)
-    result_dict = {
-        parts[i - 1].lstrip("."): parts[i][2:-1] for i in range(1, len(parts), 2)
-    }
-    return result_dict
-
-
 @typechecked
 class CustomFlattener(BaseFlattener):
     logger.info("CustomFlattener for Python Dictionaries has been initiated")
@@ -63,6 +54,15 @@ class CustomFlattener(BaseFlattener):
         self.replace_string = replace_string if replace_string else self.replace_string
         self.__temp_dict = defaultdict(dict)
         self.__flatten_dict = defaultdict(list)
+
+    @staticmethod
+    def __split_and_dict(string: str) -> dict[str, str]:
+        pattern = re.compile(r"(\._\d+_)")
+        parts = pattern.split(string)
+        result_dict = {
+            parts[i - 1].lstrip("."): parts[i][2:-1] for i in range(1, len(parts), 2)
+        }
+        return result_dict
 
     def __set_heritable_fields(self, dictionary: dict[str, Any]) -> None:
         self._heritable_fields = {
@@ -97,7 +97,7 @@ class CustomFlattener(BaseFlattener):
     def __fix_nested_list(self) -> None:
         dict_names = list(self.__temp_dict.keys())
         for dict_name in dict_names:
-            index_keys = _split_and_dict(dict_name)
+            index_keys = self.__split_and_dict(dict_name)
             aux = self.__apply_translate(self.__temp_dict.pop(dict_name))
             fixed_dict_name = dict_name
             if index_keys:
@@ -136,7 +136,15 @@ class CustomFlattener(BaseFlattener):
         self, dictionary: dict[str, Any], dict_name: str, schema_ref: str
     ) -> None:
         for key, value in dictionary.items():
-            if value is not None and value != [] and value != "":
+            if (
+                not any(
+                    dot_join_args(dict_name, schema_ref, key).endswith(item)
+                    for item in self.black_list
+                )
+                and value is not None
+                and value != []
+                and value != ""
+            ):
                 if isinstance(value, dict):
                     self.__processor(value, dict_name, dot_join_args(schema_ref, key))
                 elif isinstance(value, list):
@@ -160,5 +168,12 @@ class CustomFlattener(BaseFlattener):
             tmp[dot_join_args(self.entity_name, partition_key)] = data[partition_key]
         self.__processor(tmp, self.entity_name, "")
         self.__fix_nested_list()
+        self.__flatten_dict[self.entity_name][0].pop(
+            dot_join_args(self.entity_name, self.primary_key)
+        )
+        for partition_key in self.partition_keys:
+            self.__flatten_dict[self.entity_name][0].pop(
+                dot_join_args(self.entity_name, partition_key)
+            )
         del tmp
         return self.__flatten_dict
