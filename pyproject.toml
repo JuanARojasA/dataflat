@@ -5,7 +5,7 @@ description = "A library to flatten nested data."
 authors = [
   {name = "Juan Rojas", email = "jarojasa97@gmail.com"},
 ]
-requires-python = ">= 3.8"
+requires-python = ">= 3.10"
 dependencies = ["typeguard==4.3.0"]
 keywords = ["flattening", "nested", "data", "pyspark"]
 classifiers=[
@@ -17,7 +17,6 @@ classifiers=[
     'Natural Language :: English',
     'Operating System :: OS Independent',
     'Programming Language :: Python :: 3',
-    "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
