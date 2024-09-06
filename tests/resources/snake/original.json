@@ -31,14 +31,15 @@
           "price": 1200.00,
           "attributes": [
             {
-              "attribute_name": "color",
+              "attribute_name": "Color",
               "attribute_value": "Silver"
             },
             {
-              "attribute_name": "warranty",
+              "attribute_name": "Warranty",
               "attribute_value": "2 years"
             }
-          ]
+          ],
+          "tags": ["Electronics", "Portable", "High-End"]
         },
         {
           "item_id": "b9f8d7e9-2b60-4f1b-92d2-f8d99aefa9b3",
@@ -47,20 +48,21 @@
           "price": 25.50,
           "attributes": [
             {
-              "attribute_name": "color",
+              "attribute_name": "Color",
               "attribute_value": "Black"
             },
             {
-              "attribute_name": "connectivity",
+              "attribute_name": "Connectivity",
               "attribute_value": "Bluetooth"
             }
-          ]
+          ],
+          "tags": ["Accessories", "Wireless", "Peripherals"]
         }
       ],
       "payment": {
-        "method": "credit_card",
+        "method": "Credit Card",
         "card_last_four": "1234",
-        "status": "paid",
+        "status": "Paid",
         "transaction_id": "78a0caae-b1f4-4ebf-90e4-2a1d8f9a63f1"
       },
       "notes": [
@@ -97,14 +99,15 @@
           "price": 899.99,
           "attributes": [
             {
-              "attribute_name": "color",
+              "attribute_name": "Color",
               "attribute_value": "Gold"
             },
             {
-              "attribute_name": "storage",
+              "attribute_name": "Storage",
               "attribute_value": "128GB"
             }
-          ]
+          ],
+          "tags": ["Electronics", "Mobile", "Gadgets"]
         },
         {
           "item_id": "d1f7g8h9-2b74-4c9e-92f1-a8b9d9a8b9a2",
@@ -113,19 +116,20 @@
           "price": 19.99,
           "attributes": [
             {
-              "attribute_name": "material",
+              "attribute_name": "Material",
               "attribute_value": "Silicone"
             },
             {
-              "attribute_name": "color",
+              "attribute_name": "Color",
               "attribute_value": "Blue"
             }
-          ]
+          ],
+          "tags": ["Accessories", "Protective", "Case"]
         }
       ],
       "payment": {
-        "method": "paypal",
-        "status": "pending",
+        "method": "PayPal",
+        "status": "Pending",
         "transaction_id": "43b2e7ea-b6b4-4f7e-b1c9-8a9d8f1b7f6c"
       },
       "notes": [

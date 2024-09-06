@@ -1,4 +1,5 @@
 import os
+import hashlib
 
 from pytest import fixture
 
@@ -24,8 +25,22 @@ def get_custom_flattener():
 
 @fixture(scope="function")
 def get_full_path():
-    def _get_full_path(case: str, entity_name: str) -> str:
-        base_dir = os.path.join(os.path.dirname(__file__), "resources", case)
-        return os.path.join(base_dir, f"{entity_name}.json")
+    def _get_full_path(case: str, entity: str) -> str:
+        file_path = os.path.join(
+            os.path.dirname(__file__), "resources", case, f"{entity}.json"
+        )
+        return file_path
 
     return _get_full_path
+
+
+@fixture(scope="function")
+def compare_result():
+    def _compare_result(result: str, expected_result_filepath: str):
+        print(result)
+        result_md5 = hashlib.md5(result.encode("utf-8")).hexdigest()
+        with open(expected_result_filepath, "rb") as f:
+            expected_result_md5 = hashlib.md5(f.read()).hexdigest()
+        return result_md5 == expected_result_md5
+
+    return _compare_result

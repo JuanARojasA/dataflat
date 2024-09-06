@@ -30,8 +30,8 @@ The following step is assing the required variables for the flattening process.
 #   to_case = None
 #   replace_string = "."
 #   remove_special_chars = False
-from_case = CaseTranslatorOptions.CAMEL_CASE
-to_case = CaseTranslatorOptions.SNAKE_CASE
+from_case = CaseTranslatorOptions.CAMEL
+to_case = CaseTranslatorOptions.SNAKE
 replace_string = "."
 remove_special_chars = False
 ```

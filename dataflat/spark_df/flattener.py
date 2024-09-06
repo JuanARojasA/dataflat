@@ -217,7 +217,7 @@ class CustomFlattener(BaseFlattener):
     def flatten(
         self,
         data: DataFrame,
-        primary_key: str,
+        primary_key: Optional[str],
         entity_name: Optional[str] = None,
         partition_keys: Optional[list[str]] = None,
         black_list: Optional[list[str]] = None,

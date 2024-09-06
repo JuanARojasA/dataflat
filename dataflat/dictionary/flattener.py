@@ -46,7 +46,7 @@ class CustomFlattener(BaseFlattener):
 
     def __set__(
         self,
-        primary_key: str,
+        primary_key: Optional[str] = None,
         entity_name: Optional[str] = None,
         partition_keys: Optional[list[str]] = None,
         black_list: Optional[list[str]] = None,
@@ -61,10 +61,10 @@ class CustomFlattener(BaseFlattener):
             case_translator if case_translator else self.case_translator
         )
         self.replace_string = replace_string if replace_string else self.replace_string
-        self._temp_dict = defaultdict(dict)
-        self._flatten_dict = defaultdict(list)
+        self.__temp_dict = defaultdict(dict)
+        self.__flatten_dict = defaultdict(list)
 
-    def _set_heritable_fields(self, dictionary: dict[str, Any]) -> None:
+    def __set_heritable_fields(self, dictionary: dict[str, Any]) -> None:
         self._heritable_fields = {
             dot_join_args(self.entity_name, self.primary_key): dictionary[
                 self.primary_key
@@ -75,7 +75,7 @@ class CustomFlattener(BaseFlattener):
                 dictionary[partition_key]
             )
 
-    def _process_strings(self, string: str) -> str:
+    def __process_strings(self, string: str) -> str:
         if self.case_translator is not None:
             return self.replace_string.join(
                 [
@@ -86,19 +86,19 @@ class CustomFlattener(BaseFlattener):
             )
         return self.replace_string.join(string.split("."))
 
-    def _apply_translate(self, dictionary: dict[str, Any]) -> dict[str, Any]:
+    def __apply_translate(self, dictionary: dict[str, Any]) -> dict[str, Any]:
         if (self.replace_string != ".") or (self.case_translator is not None):
             keys = list(dictionary.keys())
             for key in keys:
-                fixed_key = self._process_strings(key)
+                fixed_key = self.__process_strings(key)
                 dictionary[fixed_key] = dictionary.pop(key)
         return dictionary
 
-    def _fix_nested_list(self) -> None:
-        dict_names = list(self._temp_dict.keys())
+    def __fix_nested_list(self) -> None:
+        dict_names = list(self.__temp_dict.keys())
         for dict_name in dict_names:
             index_keys = _split_and_dict(dict_name)
-            aux = self._apply_translate(self._temp_dict.pop(dict_name))
+            aux = self.__apply_translate(self.__temp_dict.pop(dict_name))
             fixed_dict_name = dict_name
             if index_keys:
                 aux.update(self._heritable_fields)
@@ -111,16 +111,16 @@ class CustomFlattener(BaseFlattener):
                     )
                 aux["index"] = int(last_value)
                 fixed_dict_name = dot_join_args(trailing_index_key, last_key)
-            fixed_dict_name = self._process_strings(fixed_dict_name)
-            if fixed_dict_name in self._flatten_dict:
-                self._flatten_dict[fixed_dict_name].append(aux)
+            fixed_dict_name = self.__process_strings(fixed_dict_name)
+            if fixed_dict_name in self.__flatten_dict:
+                self.__flatten_dict[fixed_dict_name].append(aux)
             else:
-                self._flatten_dict[fixed_dict_name] = [aux]
+                self.__flatten_dict[fixed_dict_name] = [aux]
 
-    def _process_list(self, key: str, value: list, dict_name: str, schema_ref: str):
+    def __process_list(self, key: str, value: list, dict_name: str, schema_ref: str):
         if isinstance(value[0], dict):
             for index, item in enumerate(value):
-                self._processor(
+                self.__processor(
                     item,
                     dot_join_args(dict_name, schema_ref, key, f"_{str(index)}_"),
                     "",
@@ -128,36 +128,37 @@ class CustomFlattener(BaseFlattener):
         else:
             for index, item in enumerate(value):
                 dict_item = {key: item}
-                self._temp_dict[
+                self.__temp_dict[
                     dot_join_args(dict_name, schema_ref, key, f"_{str(index)}_")
                 ] = dict_item
 
-    def _processor(
+    def __processor(
         self, dictionary: dict[str, Any], dict_name: str, schema_ref: str
     ) -> None:
         for key, value in dictionary.items():
             if value is not None and value != [] and value != "":
                 if isinstance(value, dict):
-                    self._processor(value, dict_name, dot_join_args(schema_ref, key))
+                    self.__processor(value, dict_name, dot_join_args(schema_ref, key))
                 elif isinstance(value, list):
-                    self._process_list(key, value, dict_name, schema_ref)
+                    self.__process_list(key, value, dict_name, schema_ref)
                 else:
-                    self._temp_dict[dict_name][dot_join_args(schema_ref, key)] = value
+                    self.__temp_dict[dict_name][dot_join_args(schema_ref, key)] = value
 
     def flatten(
         self,
         data: dict[str, Any],
-        primary_key: str,
+        primary_key: Optional[str] = None,
         entity_name: Optional[str] = None,
         partition_keys: Optional[list[str]] = None,
         black_list: Optional[list[str]] = None,
     ) -> dict[str, list[dict[str, Any]]]:
         self.__set__(primary_key, entity_name, partition_keys, black_list)
-        dct = data.copy()
-        self._set_heritable_fields(dct)
-        dct[dot_join_args(self.entity_name, primary_key)] = data[primary_key]
+        tmp = data.copy()
+        self.__set_heritable_fields(tmp)
+        tmp[dot_join_args(self.entity_name, self.primary_key)] = data[self.primary_key]
         for partition_key in self.partition_keys:
-            dct[dot_join_args(self.entity_name, partition_key)] = data[partition_key]
-        self._processor(dct, self.entity_name, "")
-        self._fix_nested_list()
-        return self._flatten_dict
+            tmp[dot_join_args(self.entity_name, partition_key)] = data[partition_key]
+        self.__processor(tmp, self.entity_name, "")
+        self.__fix_nested_list()
+        del tmp
+        return self.__flatten_dict

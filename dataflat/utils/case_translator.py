@@ -29,12 +29,12 @@ logger = init_logger(__name__)
 
 
 class CaseTranslatorOptions(enum.Enum):     # Possible values
-    SNAKE_CASE = {"id": 1, "split_string": "_"}
-    KEBAB_CASE = {"id": 2, "split_string": "-"}
-    CAMEL_CASE = {"id": 3, "split_string": " "}
-    PASCAL_CASE = {"id": 4, "split_string": " "}
-    HUMAN_READABLE = {"id": 5, "split_string": " "}
-    LOWER_CASE = {"id": 6, "split_string": " "}
+    SNAKE = {"id": 1, "split_string": "_"}
+    KEBAB = {"id": 2, "split_string": "-"}
+    CAMEL = {"id": 3, "split_string": " "}
+    PASCAL = {"id": 4, "split_string": " "}
+    HUMAN = {"id": 5, "split_string": " "}
+    LOWER = {"id": 6, "split_string": " "}
 
 
 @typechecked
@@ -88,7 +88,7 @@ class CustomCaseTranslator:
         replaced_strings = string.split(self.from_case.value['split_string'])
         return [replaced_string.lower() for replaced_string in replaced_strings if replaced_string != ""]
 
-    def _kebab_case(self, string: str) -> str:
+    def _kebab(self, string: str) -> str:
         """Receive a string and convert it to kebab-case
 
         Parameters
@@ -101,7 +101,7 @@ class CustomCaseTranslator:
         """
         return "-".join(self._normalize(string))
 
-    def _snake_case(self, string: str) -> str:
+    def _snake(self, string: str) -> str:
         """Receive a string and convert it to snake_case
 
         Parameters
@@ -114,7 +114,7 @@ class CustomCaseTranslator:
         """
         return "_".join(self._normalize(string))
 
-    def _camel_case(self, string: str) -> str:
+    def _camel(self, string: str) -> str:
         """Receive a string and convert it to camelCase
 
         Parameters
@@ -127,7 +127,7 @@ class CustomCaseTranslator:
         """
         return "".join([word.capitalize() if index > 0 else word for index, word in enumerate(self._normalize(string))])
 
-    def _pascal_case(self, string: str) -> str:
+    def _pascal(self, string: str) -> str:
         """Receive a string and convert it to PascalCase
 
         Parameters
@@ -140,7 +140,7 @@ class CustomCaseTranslator:
         """
         return "".join([word.capitalize() for word in self._normalize(string)])
     
-    def _lower_case(self, string: str) -> str:
+    def _lower(self, string: str) -> str:
         """Receive a string and convert it to lowercase
 
         Parameters
@@ -153,7 +153,7 @@ class CustomCaseTranslator:
         """
         return "".join(self._normalize(string)).lower()
 
-    def _human_readable(self, string: str) -> str:
+    def _human(self, string: str) -> str:
         """Receive a string and convert it to Human readable
 
         Parameters
@@ -182,6 +182,6 @@ class CustomCaseTranslator:
         """
         if self.remove_special_chars:
             string = re.sub(r'\W+', "", string)
-        if self.from_case.name in ('CAMEL_CASE', 'PASCAL_CASE'):
+        if self.from_case.name in ('CAMEL', 'PASCAL'):
             string = self._pre_process_string(string)
         return getattr(self, f"_{self.to_case.name.lower()}")(string)

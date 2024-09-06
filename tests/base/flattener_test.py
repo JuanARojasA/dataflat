@@ -11,8 +11,8 @@ def test_flattener():
 
 
 def test_flattener_with_case_translator(get_custom_flattener):
-    from_case = CaseTranslatorOptions.CAMEL_CASE
-    to_case = CaseTranslatorOptions.SNAKE_CASE
+    from_case = CaseTranslatorOptions.CAMEL
+    to_case = CaseTranslatorOptions.SNAKE
     base: BaseFlattener = get_custom_flattener(BaseFlattener, from_case, to_case)
     assert base.case_translator is not None
     assert base.case_translator.from_case == from_case

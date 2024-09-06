@@ -71,9 +71,9 @@ def handler(
             "from_case and to_case are the same, no translation will be applied."
         )
         case_translator = None
-    elif from_case.name == "LOWER_CASE":
+    elif from_case.name == "LOWER":
         logger.warning(
-            f"Is impossible to translate from LOWER_CASE to {to_case.name}, no translation will be applied."
+            f"Is impossible to translate from LOWER to {to_case.name}, no translation will be applied."
         )
         case_translator = None
     else:

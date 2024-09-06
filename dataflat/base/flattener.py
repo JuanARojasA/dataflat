@@ -17,6 +17,7 @@ Authors:
     Juan ROJAS <jarojasa97@gmail.com>
 """
 
+from abc import abstractmethod
 from dataclasses import dataclass
 from typing import Any, Optional
 
@@ -30,10 +31,11 @@ class BaseFlattener:
     entity_name: Optional[str] = "data"
     primary_key: Optional[str] = "id"
 
+    @abstractmethod
     def flatten(
         self,
         data: Any,
-        primary_key: str,
+        primary_key: Optional[str],
         entity_name: Optional[str] = None,
         partition_keys: Optional[list[str]] = None,
         black_list: Optional[list[str]] = None,
