@@ -38,7 +38,8 @@ Changelog = "https://github.com/JuanARojasA/dataflat/blob/master/CHANGELOG.md"
 [project.optional-dependencies]
 test = [
     "coverage==7.6.1",
-    "pytest==8.3.2"
+    "pytest==8.3.2",
+    "testcontainers==4.8.0"
 ]
 
 [tool.commitizen]

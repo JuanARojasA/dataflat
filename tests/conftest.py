@@ -1,7 +1,9 @@
-import os
 import hashlib
+import os
 
+from pyspark.sql import SparkSession
 from pytest import fixture
+from testcontainers.core.container import DockerContainer
 
 from dataflat.utils.case_translator import CaseTranslatorOptions, CustomCaseTranslator
 
@@ -43,3 +45,26 @@ def compare_result():
         return result_md5 == expected_result_md5
 
     return _compare_result
+
+
+@fixture(scope="function")
+def ignore_null_keys():
+    def _ignore_null_keys(d):
+        return {k: v for k, v in d.items() if v is not None}
+
+    return _ignore_null_keys
+
+
+@fixture(scope="session")
+def spark():
+    path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "resources")
+    spark_container = (
+        DockerContainer("bitnami/spark:3.5.0")
+        .with_exposed_ports(8080, 7077)
+        .with_volume_mapping(path, path)
+    )
+    with spark_container:
+        spark = (
+            SparkSession.builder.appName("TestClient").master("local[*]").getOrCreate()
+        )
+        yield spark

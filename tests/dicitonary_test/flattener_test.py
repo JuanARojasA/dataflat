@@ -1,8 +1,8 @@
-import pytest
 import json
+from collections import OrderedDict
 
 from dataflat.dictionary.flattener import CustomFlattener
-from dataflat.utils.case_translator import CaseTranslatorOptions, CustomCaseTranslator
+from dataflat.utils.case_translator import CaseTranslatorOptions
 
 
 def test_flattener():
@@ -13,7 +13,6 @@ def test_flattener():
     assert base.primary_key == "id"
 
 
-@pytest.mark.slow
 def test_flatten_camel_to_snake(get_custom_flattener, get_full_path, compare_result):
     from_case = CaseTranslatorOptions.CAMEL
     to_case = CaseTranslatorOptions.SNAKE
@@ -25,13 +24,15 @@ def test_flatten_camel_to_snake(get_custom_flattener, get_full_path, compare_res
     results = flattener.flatten(data, partition_keys=["date"])
 
     for entity, result in results.items():
-        string_result = "\n".join(json.dumps(item) for item in result)
+        string_result = "\n".join(
+            json.dumps(OrderedDict(sorted(item.items())), separators=(",", ":"))
+            for item in result
+        )
         assert compare_result(
             string_result, get_full_path(to_case.name.lower(), entity)
         )
 
 
-@pytest.mark.slow
 def test_flatten_snake_to_camel(get_custom_flattener, get_full_path, compare_result):
     from_case = CaseTranslatorOptions.SNAKE
     to_case = CaseTranslatorOptions.CAMEL
@@ -43,13 +44,15 @@ def test_flatten_snake_to_camel(get_custom_flattener, get_full_path, compare_res
     results = flattener.flatten(data, partition_keys=["date"])
 
     for entity, result in results.items():
-        string_result = "\n".join(json.dumps(item) for item in result)
+        string_result = "\n".join(
+            json.dumps(OrderedDict(sorted(item.items())), separators=(",", ":"))
+            for item in result
+        )
         assert compare_result(
             string_result, get_full_path(to_case.name.lower(), entity)
         )
 
 
-@pytest.mark.slow
 def test_flatten_black_list(get_custom_flattener, get_full_path, compare_result):
     from_case = CaseTranslatorOptions.SNAKE
     to_case = CaseTranslatorOptions.SNAKE
@@ -63,5 +66,8 @@ def test_flatten_black_list(get_custom_flattener, get_full_path, compare_result)
     )
 
     for entity, result in results.items():
-        string_result = "\n".join(json.dumps(item) for item in result)
+        string_result = "\n".join(
+            json.dumps(OrderedDict(sorted(item.items())), separators=(",", ":"))
+            for item in result
+        )
         assert compare_result(string_result, get_full_path("black_list", entity))

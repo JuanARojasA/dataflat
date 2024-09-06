@@ -34,3 +34,10 @@ def test_flattener_with_primary_key():
     primary_key = "tests"
     base = BaseFlattener(primary_key=primary_key)
     assert base.primary_key == primary_key
+
+
+def test_flatten_abstract(get_custom_flattener):
+    from_case = CaseTranslatorOptions.CAMEL
+    to_case = CaseTranslatorOptions.SNAKE
+    base: BaseFlattener = get_custom_flattener(BaseFlattener, from_case, to_case)
+    assert base.flatten({}) is None

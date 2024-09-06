@@ -30,7 +30,7 @@ logger = init_logger(__name__)
 
 class FlattenerOptions(enum.Enum):
     DICTIONARY = 1
-    SPARK_DF = 2
+    PYSPARK_DF = 2
 
 
 @typechecked

@@ -35,7 +35,7 @@ class BaseFlattener:
     def flatten(
         self,
         data: Any,
-        primary_key: Optional[str],
+        primary_key: Optional[str] = None,
         entity_name: Optional[str] = None,
         partition_keys: Optional[list[str]] = None,
         black_list: Optional[list[str]] = None,

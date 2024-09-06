@@ -1,5 +1,5 @@
 """
-dataflat/spark_df/flattener.py - The processor script for spark dataframes flattening process
+dataflat/pyspark/flattener.py - The processor script for spark dataframes flattening process
 
 Copyright (C) 2024 Juan ROJAS
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -49,11 +49,11 @@ logger = init_logger(__name__)
 @typechecked
 class CustomFlattener(BaseFlattener):
     logger.info("CustomFlattener for PySpark Dataframes has been initiated")
-    spark: SparkSession = SparkSession.getActiveSession()
+    spark: SparkSession
 
     def __set__(
         self,
-        primary_key: str,
+        primary_key: Optional[str],
         entity_name: Optional[str] = None,
         partition_keys: Optional[list[str]] = None,
         black_list: Optional[list[str]] = None,
@@ -65,7 +65,9 @@ class CustomFlattener(BaseFlattener):
         self.entity_name = entity_name if entity_name else self.entity_name
         self.partition_keys = partition_keys if partition_keys else []
         self.black_list = black_list if black_list is not None else []
-        self.case_translator = case_translator if case_translator else None
+        self.case_translator = (
+            case_translator if case_translator else self.case_translator
+        )
         self.replace_string = replace_string if replace_string else "."
         self._flattened_schemas: dict[str, list[str]] = {}
         self._relations: dict[str, str] = {}
@@ -217,13 +219,14 @@ class CustomFlattener(BaseFlattener):
     def flatten(
         self,
         data: DataFrame,
-        primary_key: Optional[str],
+        primary_key: Optional[str] = None,
         entity_name: Optional[str] = None,
         partition_keys: Optional[list[str]] = None,
         black_list: Optional[list[str]] = None,
     ) -> dict[str, DataFrame]:
         self.__set__(primary_key, entity_name, partition_keys, black_list)
-        data.createOrReplaceTempView(entity_name)
+        self.spark = SparkSession.getActiveSession()
+        data.createOrReplaceTempView(self.entity_name)
         self._get_nested_struct(data.schema.jsonValue(), self.entity_name, "")
         sorted_dataframes = sorted(
             list(self._flattened_schemas.keys()), key=lambda k: k.split(".")
