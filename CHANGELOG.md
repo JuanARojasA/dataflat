@@ -34,6 +34,7 @@
 
 - **pyproject.toml**: suppress `pandas.errors.Pandas4Warning` in pytest `filterwarnings`
 - **pyspark**: store `spark.sql()` results directly in `_flattened_dataframes` instead of round-tripping through RDD — avoids Python worker subprocess crash with PySpark 4.x + PyArrow 23.x
+- **dictionary**: replaced per-entity `__apply_translate` + `_process_strings(entity_name)` calls inside `__fix_nested_list` with a single final-pass `__apply_column_translate` invoked after all unnesting is complete; fixes a bug where heritable field keys (e.g. `data.id`, `data.date`) were not translated when a case translator was active; aligns the Dictionary flattener with the single-pass pattern used by all DataFrame backends
 
 ## v2.0.0 (2024-09-06)
 
