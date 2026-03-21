@@ -76,7 +76,7 @@ def get_custom_flattener():
             to_case=to_case,
             remove_special_chars=False,
         )
-        return flattener_class(case_translator, replace_string=".")
+        return flattener_class(case_translator=case_translator)
 
     return _get_custom_flattener
 

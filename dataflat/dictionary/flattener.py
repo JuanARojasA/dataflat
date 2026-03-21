@@ -18,6 +18,7 @@ Authors:
 """
 
 import re
+import uuid
 from collections import defaultdict
 from typing import Any, Optional
 
@@ -25,7 +26,6 @@ from typeguard import typechecked
 
 from dataflat.base_flattener import BaseFlattener
 from dataflat.utils.logger import init_logger
-from dataflat.utils.case_translator import CustomCaseTranslator
 from dataflat.utils.string import dot_join_args
 
 logger = init_logger(__name__)
@@ -45,17 +45,11 @@ class CustomFlattener(BaseFlattener):
         entity_name: Optional[str] = None,
         partition_keys: Optional[list[str]] = None,
         black_list: Optional[list[str]] = None,
-        case_translator: Optional[CustomCaseTranslator] = None,
-        replace_string: Optional[str] = None,
     ) -> None:
-        self.primary_key = primary_key if primary_key else self.primary_key
+        self.primary_key = primary_key
         self.entity_name = entity_name if entity_name else self.entity_name
         self.partition_keys = partition_keys if partition_keys else []
         self.black_list = black_list if black_list is not None else []
-        self.case_translator = (
-            case_translator if case_translator else self.case_translator
-        )
-        self.replace_string = replace_string if replace_string else self.replace_string
         self.__temp_dict = defaultdict(dict)
         self.__flatten_dict = defaultdict(list)
 
@@ -73,10 +67,11 @@ class CustomFlattener(BaseFlattener):
         return result_dict
 
     def __set_heritable_fields(self, dictionary: dict[str, Any]) -> None:
+        # primary_key is always set to a non-None string before this is called.
+        assert self.primary_key is not None
+        pk = self.primary_key
         self._heritable_fields = {
-            dot_join_args(self.entity_name, self.primary_key): dictionary[
-                self.primary_key
-            ]
+            dot_join_args(self.entity_name, pk): dictionary[pk]
         }
         for partition_key in self.partition_keys:
             self._heritable_fields[dot_join_args(self.entity_name, partition_key)] = (
@@ -88,7 +83,7 @@ class CustomFlattener(BaseFlattener):
     # ------------------------------------------------------------------
 
     def __apply_translate(self, dictionary: dict[str, Any]) -> dict[str, Any]:
-        if (self.replace_string != ".") or (self.case_translator is not None):
+        if self.case_translator is not None:
             keys = list(dictionary.keys())
             for key in keys:
                 fixed_key = self._process_strings(key)
@@ -111,9 +106,7 @@ class CustomFlattener(BaseFlattener):
                 trailing_index_key = ""
                 for index_key, index_value in index_keys.items():
                     trailing_index_key = dot_join_args(trailing_index_key, index_key)
-                    aux[trailing_index_key + self.replace_string + "index"] = int(
-                        index_value
-                    )
+                    aux[dot_join_args(trailing_index_key, "index")] = int(index_value)
                 aux["index"] = int(last_value)
                 fixed_dict_name = dot_join_args(trailing_index_key, last_key)
             fixed_dict_name = self._process_strings(fixed_dict_name)
@@ -173,8 +166,12 @@ class CustomFlattener(BaseFlattener):
     ) -> dict[str, list[dict[str, Any]]]:
         self._setup(primary_key, entity_name, partition_keys, black_list)
         tmp = data.copy()
+        if self.primary_key is None:
+            pk_col = self._dataflat_id_col_name
+            tmp[pk_col] = str(uuid.uuid4())
+            self.primary_key = pk_col
         self.__set_heritable_fields(tmp)
-        tmp[dot_join_args(self.entity_name, self.primary_key)] = data[self.primary_key]
+        tmp[dot_join_args(self.entity_name, self.primary_key)] = tmp[self.primary_key]
         for partition_key in self.partition_keys:
             tmp[dot_join_args(self.entity_name, partition_key)] = data[partition_key]
         self.__processor(tmp, self.entity_name, "")

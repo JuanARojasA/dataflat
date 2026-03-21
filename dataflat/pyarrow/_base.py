@@ -52,7 +52,7 @@ class _PyArrowBaseFlattener(BaseFlattener):
         partition_keys: Optional[list[str]] = None,
         black_list: Optional[list[str]] = None,
     ) -> None:
-        self.primary_key = primary_key if primary_key else self.primary_key
+        self.primary_key = primary_key
         self.entity_name = entity_name if entity_name else self.entity_name
         self.partition_keys = partition_keys if partition_keys else []
         self.black_list = black_list if black_list is not None else []
@@ -63,7 +63,7 @@ class _PyArrowBaseFlattener(BaseFlattener):
     # ------------------------------------------------------------------
 
     def _apply_column_translate(self) -> None:
-        if self.replace_string != "." or self.case_translator is not None:
+        if self.case_translator is not None:
             translated: dict[str, pa.Table] = {}
             for entity_name, table in self._result.items():
                 new_names = [self._process_strings(col) for col in table.schema.names]
@@ -222,6 +222,10 @@ class _PyArrowBaseFlattener(BaseFlattener):
             raw names (``id``, ``date``) that must be renamed with the entity
             prefix (``data.id``, ``data.date``) when building child Tables.
         """
+        # primary_key is always set to a non-None string before _process_table is called.
+        assert self.primary_key is not None
+        pk = self.primary_key
+
         # 1. Expand every Struct column in-place (with dot-prefixed field names).
         table = self._expand_structs(table, entity_name)
 
@@ -240,11 +244,11 @@ class _PyArrowBaseFlattener(BaseFlattener):
 
             if is_root:
                 # Rename pk and partition_keys with the entity prefix for children.
-                rename_map = {
-                    self.primary_key: dot_join_args(entity_name, self.primary_key)
+                rename_map: dict[str, str] = {
+                    pk: dot_join_args(entity_name, pk)
                 }
-                for pk in self.partition_keys:
-                    rename_map[pk] = dot_join_args(entity_name, pk)
+                for part_key in self.partition_keys:
+                    rename_map[part_key] = dot_join_args(entity_name, part_key)
 
                 child_table = table.select(inherited_cols + [list_col])
                 child_table = _rename_columns(child_table, rename_map)

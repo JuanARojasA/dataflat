@@ -61,7 +61,7 @@ class CustomFlattener(BaseFlattener):
         partition_keys: Optional[list[str]] = None,
         black_list: Optional[list[str]] = None,
     ) -> None:
-        self.primary_key = primary_key if primary_key else self.primary_key
+        self.primary_key = primary_key
         self.entity_name = entity_name if entity_name else self.entity_name
         self.partition_keys = partition_keys if partition_keys else []
         self.black_list = black_list if black_list is not None else []
@@ -75,7 +75,7 @@ class CustomFlattener(BaseFlattener):
     # ------------------------------------------------------------------
 
     def __apply_column_translate(self) -> None:
-        if (self.replace_string != ".") or (self.case_translator is not None):
+        if self.case_translator is not None:
             translated_dfs = {}
             for df_name, df in self._flattened_dataframes.items():
                 select_expr = [
@@ -244,6 +244,14 @@ class CustomFlattener(BaseFlattener):
         black_list: Optional[list[str]] = None,
     ) -> dict[str, DataFrame]:
         self._setup(primary_key, entity_name, partition_keys, black_list)
+
+        if self.primary_key is None:
+            from pyspark.sql import functions as F
+
+            pk_col = self._dataflat_id_col_name
+            data = data.withColumn(pk_col, F.expr("uuid()"))
+            self.primary_key = pk_col
+
         session = SparkSession.getActiveSession()
         assert session is not None, "No active Spark session"
         self.spark = session

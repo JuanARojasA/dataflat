@@ -68,7 +68,6 @@ flattener = handler(
     custom_flattener=FlattenerOptions.DICTIONARY,  # or POLARS_DF / PYSPARK_DF
     from_case=CaseTranslatorOptions.CAMEL,         # optional
     to_case=CaseTranslatorOptions.SNAKE,           # optional
-    replace_string=".",                            # separator in output keys (default ".")
     remove_special_chars=False,                    # strip non-alphanumeric chars (default False)
 )
 ```
@@ -90,7 +89,7 @@ All flatteners share the same `flatten()` signature:
 ```python
 flatten_data = flattener.flatten(
     data=data,                                      # dict / Polars / PySpark DataFrame
-    primary_key="id",                               # default "id"
+    primary_key="id",                               # optional; auto-generates UUID column when omitted
     entity_name="data",                             # root entity name, default "data"
     partition_keys=["date"],                        # columns propagated to all children
     black_list=["keys.to", "be.ignored"],           # fields excluded from output
@@ -99,7 +98,7 @@ flatten_data = flattener.flatten(
 
 **Parameters**
 
-- `primary_key` — identifies each root record; propagated to all child entities as `<entity_name>.<primary_key>` (e.g. `data.id`).
+- `primary_key` — identifies each root record; propagated to all child entities as `<entity_name>.<primary_key>` (e.g. `data.id`). When `None` (the default), a UUID column is auto-generated with a name that matches `to_case`: `dataflat_id_column` (SNAKE), `dataflat-id-column` (KEBAB), `dataflatIdColumn` (CAMEL), `DataflatIdColumn` (PASCAL), `Dataflat id column` (HUMAN), `dataflatidcolumn` (LOWER).
 - `partition_keys` — additional root columns (e.g. `["date"]`) inherited by every child entity.
 - `black_list` — dot-joined field paths excluded from all output (e.g. `["summary.totalClients"]`).
 

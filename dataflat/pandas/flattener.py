@@ -17,6 +17,7 @@ Authors:
     Juan ROJAS <jarojasa97@gmail.com>
 """
 
+import uuid
 import warnings
 from typing import Optional
 
@@ -89,7 +90,16 @@ class CustomFlattener(_PyArrowBaseFlattener):
         table = table.replace_schema_metadata({})
 
         # Ensure the root Table has a primary-key column.
-        if self.primary_key not in table.schema.names:
+        if self.primary_key is None:
+            pk_col = self._dataflat_id_col_name
+            table = table.append_column(
+                pa.field(pk_col, pa.string()),
+                pa.array(
+                    [str(uuid.uuid4()) for _ in range(len(table))], type=pa.string()
+                ),
+            )
+            self.primary_key = pk_col
+        elif self.primary_key not in table.schema.names:
             table = table.append_column(
                 pa.field(self.primary_key, pa.int64()),
                 pa.array(range(len(table)), type=pa.int64()),

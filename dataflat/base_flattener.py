@@ -21,29 +21,44 @@ from abc import ABC
 from dataclasses import dataclass, field
 from typing import Any, Optional
 
-from dataflat.utils.case_translator import CustomCaseTranslator
+from dataflat.utils.case_translator import CaseTranslatorOptions, CustomCaseTranslator
 
 
 @dataclass
 class BaseFlattener(ABC):
     case_translator: Optional[CustomCaseTranslator] = None
-    replace_string: str = "."
     entity_name: str = "data"
-    primary_key: str = "id"
+    primary_key: Optional[str] = None
     partition_keys: list[str] = field(default_factory=list)
     black_list: list[str] = field(default_factory=list)
 
+    @property
+    def _dataflat_id_col_name(self) -> str:
+        """Return the auto-generated primary-key column name based on to_case."""
+        if self.case_translator is None:
+            return "dataflat_id_column"
+        to_case = self.case_translator.to_case
+        if to_case == CaseTranslatorOptions.KEBAB:
+            return "dataflat-id-column"
+        if to_case == CaseTranslatorOptions.CAMEL:
+            return "dataflatIdColumn"
+        if to_case == CaseTranslatorOptions.PASCAL:
+            return "DataflatIdColumn"
+        if to_case == CaseTranslatorOptions.HUMAN:
+            return "Dataflat id column"
+        if to_case == CaseTranslatorOptions.LOWER:
+            return "dataflatidcolumn"
+        return "dataflat_id_column"  # SNAKE or unknown
+
     def _process_strings(self, string: str) -> str:
-        """Translate case and replace separator dots in a dot-joined key string."""
+        """Translate case in a dot-joined key string. Separator is always '.'."""
         if self.case_translator is not None:
-            return self.replace_string.join(
-                [
-                    self.case_translator.translate(sub_string)
-                    for sub_string in string.split(".")
-                    if string != ""
-                ]
+            return ".".join(
+                self.case_translator.translate(sub_string)
+                for sub_string in string.split(".")
+                if sub_string != ""
             )
-        return self.replace_string.join(string.split("."))
+        return string
 
     def flatten(
         self,

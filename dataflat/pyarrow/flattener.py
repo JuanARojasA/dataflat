@@ -17,6 +17,7 @@ Authors:
     Juan ROJAS <jarojasa97@gmail.com>
 """
 
+import uuid
 from typing import Optional
 
 import pyarrow as pa
@@ -67,7 +68,16 @@ class CustomFlattener(_PyArrowBaseFlattener):
         self._setup(primary_key, entity_name, partition_keys, black_list)
 
         # Ensure the root Table has a primary-key column.
-        if self.primary_key not in data.schema.names:
+        if self.primary_key is None:
+            pk_col = self._dataflat_id_col_name
+            data = data.append_column(
+                pa.field(pk_col, pa.string()),
+                pa.array(
+                    [str(uuid.uuid4()) for _ in range(len(data))], type=pa.string()
+                ),
+            )
+            self.primary_key = pk_col
+        elif self.primary_key not in data.schema.names:
             data = data.append_column(
                 pa.field(self.primary_key, pa.int64()),
                 pa.array(range(len(data)), type=pa.int64()),

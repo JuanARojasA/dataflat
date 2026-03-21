@@ -17,6 +17,7 @@ Authors:
     Juan ROJAS <jarojasa97@gmail.com>
 """
 
+import uuid
 from typing import Optional, cast
 
 import polars as pl
@@ -43,7 +44,7 @@ class CustomFlattener(BaseFlattener):
         partition_keys: Optional[list[str]] = None,
         black_list: Optional[list[str]] = None,
     ) -> None:
-        self.primary_key = primary_key if primary_key else self.primary_key
+        self.primary_key = primary_key
         self.entity_name = entity_name if entity_name else self.entity_name
         self.partition_keys = partition_keys if partition_keys else []
         self.black_list = black_list if black_list is not None else []
@@ -54,7 +55,7 @@ class CustomFlattener(BaseFlattener):
     # ------------------------------------------------------------------
 
     def __apply_column_translate(self) -> None:
-        if self.replace_string != "." or self.case_translator is not None:
+        if self.case_translator is not None:
             translated: dict[str, pl.DataFrame] = {}
             for df_name, df in self._result.items():
                 rename_map = {col: self._process_strings(col) for col in df.columns}
@@ -127,6 +128,10 @@ class CustomFlattener(BaseFlattener):
             raw names (``id``, ``date``) that must be renamed with the entity
             prefix (``data.id``, ``data.date``) when building child DataFrames.
         """
+        # primary_key is always set to a non-None string before __process_df is called.
+        assert self.primary_key is not None
+        pk = self.primary_key
+
         # 1. Expand every Struct column in-place (with dot-prefixed field names).
         df = self.__expand_structs(df, entity_name)
 
@@ -145,11 +150,11 @@ class CustomFlattener(BaseFlattener):
 
             if is_root:
                 # Rename pk and partition_keys with the entity prefix for children.
-                rename_map = {
-                    self.primary_key: dot_join_args(entity_name, self.primary_key)
+                rename_map: dict[str, str] = {
+                    pk: dot_join_args(entity_name, pk)
                 }
-                for pk in self.partition_keys:
-                    rename_map[pk] = dot_join_args(entity_name, pk)
+                for part_key in self.partition_keys:
+                    rename_map[part_key] = dot_join_args(entity_name, part_key)
 
                 child_df = df.select(inherited_cols + [list_col]).rename(rename_map)
                 # The prefixed columns that will be inherited by grandchildren.
@@ -250,7 +255,13 @@ class CustomFlattener(BaseFlattener):
         self._setup(primary_key, entity_name, partition_keys, black_list)
 
         # Ensure the root DataFrame has a primary-key column.
-        if self.primary_key not in data.columns:
+        if self.primary_key is None:
+            pk_col = self._dataflat_id_col_name
+            data = data.with_columns(
+                pl.Series(pk_col, [str(uuid.uuid4()) for _ in range(len(data))])
+            )
+            self.primary_key = pk_col
+        elif self.primary_key not in data.columns:
             data = data.with_row_index(self.primary_key)
 
         root_inherited = [self.primary_key] + self.partition_keys

@@ -85,7 +85,6 @@ def handler(
     custom_flattener: FlattenerOptions,
     from_case: Optional[CaseTranslatorOptions] = None,
     to_case: Optional[CaseTranslatorOptions] = None,
-    replace_string: str = ".",
     remove_special_chars: bool = False,
 ) -> BaseFlattener:
     """Return the selected flattener class from FlattenerOptions
@@ -98,8 +97,6 @@ def handler(
         The original case of the key names in dictionary
     to_case: CaseTranslatorOptions
         The destination case of the key names in dictionary
-    replace_string: str
-        String used to separate the nested keys
     remove_special_chars: bool
         Remove or not special characters on dataframe or column names
     Returns
@@ -128,6 +125,4 @@ def handler(
             remove_special_chars=remove_special_chars,
         )
 
-    return _get_flattener_class(custom_flattener)(
-        case_translator=case_translator, replace_string=replace_string
-    )
+    return _get_flattener_class(custom_flattener)(case_translator=case_translator)

@@ -5,9 +5,8 @@ from dataflat.utils.case_translator import CaseTranslatorOptions
 def test_flattener():
     base = BaseFlattener()
     assert base.case_translator is None
-    assert base.replace_string == "."
     assert base.entity_name == "data"
-    assert base.primary_key == "id"
+    assert base.primary_key is None
 
 
 def test_flattener_with_case_translator(get_custom_flattener):
@@ -17,11 +16,6 @@ def test_flattener_with_case_translator(get_custom_flattener):
     assert base.case_translator is not None
     assert base.case_translator.from_case == from_case
     assert base.case_translator.to_case == to_case
-
-
-def test_flattener_with_parameters():
-    base = BaseFlattener(replace_string=",")
-    assert base.replace_string == ","
 
 
 def test_flattener_with_entity_name():

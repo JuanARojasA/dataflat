@@ -1,6 +1,6 @@
 [project]
 name = "dataflat"
-version = "2.0.0"
+version = "3.0.0"
 description = "A library to flatten nested data."
 authors = [
   {name = "Juan Rojas", email = "jarojasa97@gmail.com"},
