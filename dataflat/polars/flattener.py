@@ -150,9 +150,7 @@ class CustomFlattener(BaseFlattener):
 
             if is_root:
                 # Rename pk and partition_keys with the entity prefix for children.
-                rename_map: dict[str, str] = {
-                    pk: dot_join_args(entity_name, pk)
-                }
+                rename_map: dict[str, str] = {pk: dot_join_args(entity_name, pk)}
                 for part_key in self.partition_keys:
                     rename_map[part_key] = dot_join_args(entity_name, part_key)
 

@@ -50,8 +50,8 @@ class CustomFlattener(BaseFlattener):
         self.entity_name = entity_name if entity_name else self.entity_name
         self.partition_keys = partition_keys if partition_keys else []
         self.black_list = black_list if black_list is not None else []
-        self.__temp_dict = defaultdict(dict)
-        self.__flatten_dict = defaultdict(list)
+        self.__temp_dict: defaultdict[str, dict[str, Any]] = defaultdict(dict)
+        self.__flatten_dict: dict[str, list[dict[str, Any]]] = defaultdict(list)
 
     # ------------------------------------------------------------------
     # Field helpers
@@ -70,9 +70,7 @@ class CustomFlattener(BaseFlattener):
         # primary_key is always set to a non-None string before this is called.
         assert self.primary_key is not None
         pk = self.primary_key
-        self._heritable_fields = {
-            dot_join_args(self.entity_name, pk): dictionary[pk]
-        }
+        self._heritable_fields = {dot_join_args(self.entity_name, pk): dictionary[pk]}
         for partition_key in self.partition_keys:
             self._heritable_fields[dot_join_args(self.entity_name, partition_key)] = (
                 dictionary[partition_key]
@@ -82,13 +80,17 @@ class CustomFlattener(BaseFlattener):
     # Column-name translation helpers
     # ------------------------------------------------------------------
 
-    def __apply_translate(self, dictionary: dict[str, Any]) -> dict[str, Any]:
+    def __apply_column_translate(self) -> None:
         if self.case_translator is not None:
-            keys = list(dictionary.keys())
-            for key in keys:
-                fixed_key = self._process_strings(key)
-                dictionary[fixed_key] = dictionary.pop(key)
-        return dictionary
+            translated: dict[str, list[dict[str, Any]]] = {}
+            for entity_name, records in self.__flatten_dict.items():
+                new_entity = self._process_strings(entity_name)
+                new_records = [
+                    {self._process_strings(k): v for k, v in record.items()}
+                    for record in records
+                ]
+                translated[new_entity] = new_records
+            self.__flatten_dict = translated
 
     # ------------------------------------------------------------------
     # Dict traversal
@@ -98,7 +100,7 @@ class CustomFlattener(BaseFlattener):
         dict_names = list(self.__temp_dict.keys())
         for dict_name in dict_names:
             index_keys = self.__split_and_dict(dict_name)
-            aux = self.__apply_translate(self.__temp_dict.pop(dict_name))
+            aux = self.__temp_dict.pop(dict_name)
             fixed_dict_name = dict_name
             if index_keys:
                 aux.update(self._heritable_fields)
@@ -109,7 +111,6 @@ class CustomFlattener(BaseFlattener):
                     aux[dot_join_args(trailing_index_key, "index")] = int(index_value)
                 aux["index"] = int(last_value)
                 fixed_dict_name = dot_join_args(trailing_index_key, last_key)
-            fixed_dict_name = self._process_strings(fixed_dict_name)
             if fixed_dict_name in self.__flatten_dict:
                 self.__flatten_dict[fixed_dict_name].append(aux)
             else:
@@ -183,5 +184,6 @@ class CustomFlattener(BaseFlattener):
             self.__flatten_dict[self.entity_name][0].pop(
                 dot_join_args(self.entity_name, partition_key)
             )
+        self.__apply_column_translate()
         del tmp
         return self.__flatten_dict
