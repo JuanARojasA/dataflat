@@ -1,6 +1,6 @@
 # dataflat
 
-A library to flatten nested keys and columns from Python Dictionaries, Polars DataFrames, PyArrow Tables, and PySpark DataFrames into a set of relational tables.
+A library to flatten nested keys and columns from Python Dictionaries, Pandas DataFrames, Polars DataFrames, PyArrow Tables, and PySpark DataFrames into a set of relational tables.
 
 ### Installation
 
@@ -11,6 +11,11 @@ pip install dataflat
 For Polars support:
 ```bash
 pip install dataflat polars
+```
+
+For Pandas support:
+```bash
+pip install dataflat pandas pyarrow
 ```
 
 For PyArrow support:
@@ -36,6 +41,7 @@ from dataflat import handler, FlattenerOptions, CaseTranslatorOptions
 | Option | Input type |
 |--------|------------|
 | `FlattenerOptions.DICTIONARY` | Python `dict` |
+| `FlattenerOptions.PANDAS_DF` | Pandas `DataFrame` |
 | `FlattenerOptions.POLARS_DF` | Polars `DataFrame` |
 | `FlattenerOptions.PYARROW_TABLE` | PyArrow `Table` |
 | `FlattenerOptions.PYSPARK_DF` | PySpark `DataFrame` |
@@ -71,6 +77,7 @@ Or import the concrete class directly if you prefer:
 
 ```python
 from dataflat.dictionary import CustomFlattener   # dict
+from dataflat.pandas import CustomFlattener       # Pandas
 from dataflat.polars import CustomFlattener       # Polars
 from dataflat.pyarrow import CustomFlattener      # PyArrow
 from dataflat.pyspark import CustomFlattener      # PySpark
@@ -155,7 +162,9 @@ Produced from:
     df = pl.read_ndjson("data.ndjson")
     ```
 
-3. For `PYARROW_TABLE` with single JSON objects (not NDJSON), use `pa.Table.from_pylist`:
+3. For `PANDAS_DF`, the flattener internally converts the DataFrame to a PyArrow Table to reliably distinguish `str`, `dict`, and `list` columns (the `numpy_nullable` dtype backend marks all three as `object`). The result is returned with the `pyarrow` dtype backend (`pd.ArrowDtype`), giving properly nullable typed columns.
+
+4. For `PYARROW_TABLE` with single JSON objects (not NDJSON), use `pa.Table.from_pylist`:
     ```python
     import json
     import pyarrow as pa

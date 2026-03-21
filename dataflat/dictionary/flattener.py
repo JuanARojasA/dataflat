@@ -35,6 +35,10 @@ logger = init_logger(__name__)
 class CustomFlattener(BaseFlattener):
     logger.info("CustomFlattener for Python Dictionaries has been initiated")
 
+    # ------------------------------------------------------------------
+    # Internal state initialisation
+    # ------------------------------------------------------------------
+
     def _setup(
         self,
         primary_key: Optional[str] = None,
@@ -54,6 +58,10 @@ class CustomFlattener(BaseFlattener):
         self.replace_string = replace_string if replace_string else self.replace_string
         self.__temp_dict = defaultdict(dict)
         self.__flatten_dict = defaultdict(list)
+
+    # ------------------------------------------------------------------
+    # Field helpers
+    # ------------------------------------------------------------------
 
     @staticmethod
     def __split_and_dict(string: str) -> dict[str, str]:
@@ -75,6 +83,10 @@ class CustomFlattener(BaseFlattener):
                 dictionary[partition_key]
             )
 
+    # ------------------------------------------------------------------
+    # Column-name translation helpers
+    # ------------------------------------------------------------------
+
     def __apply_translate(self, dictionary: dict[str, Any]) -> dict[str, Any]:
         if (self.replace_string != ".") or (self.case_translator is not None):
             keys = list(dictionary.keys())
@@ -82,6 +94,10 @@ class CustomFlattener(BaseFlattener):
                 fixed_key = self._process_strings(key)
                 dictionary[fixed_key] = dictionary.pop(key)
         return dictionary
+
+    # ------------------------------------------------------------------
+    # Dict traversal
+    # ------------------------------------------------------------------
 
     def __fix_nested_list(self) -> None:
         dict_names = list(self.__temp_dict.keys())
@@ -142,6 +158,10 @@ class CustomFlattener(BaseFlattener):
                     self.__process_list(key, value, dict_name, schema_ref)
                 else:
                     self.__temp_dict[dict_name][dot_join_args(schema_ref, key)] = value
+
+    # ------------------------------------------------------------------
+    # Public API
+    # ------------------------------------------------------------------
 
     def flatten(
         self,

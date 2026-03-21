@@ -49,6 +49,7 @@ class FlattenerOptions(enum.Enum):
     PYSPARK_DF = 2
     POLARS_DF = 3
     PYARROW_TABLE = 4
+    PANDAS_DF = 5
 
 
 def _get_flattener_class(option: FlattenerOptions) -> type[BaseFlattener]:
@@ -67,6 +68,10 @@ def _get_flattener_class(option: FlattenerOptions) -> type[BaseFlattener]:
         return CustomFlattener
     if option == FlattenerOptions.PYARROW_TABLE:
         from dataflat.pyarrow.flattener import CustomFlattener
+
+        return CustomFlattener
+    if option == FlattenerOptions.PANDAS_DF:
+        from dataflat.pandas.flattener import CustomFlattener
 
         return CustomFlattener
     # FlattenerOptions.PYSPARK_DF

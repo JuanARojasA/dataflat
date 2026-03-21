@@ -52,6 +52,8 @@ dev = [
     "testcontainers>=4.8.0",
 ]
 lint = [
+    "pandas-stubs>=2.3.3.260113",
+    "pyarrow-stubs==20.0.0.20251215",
     "pylint>=4.0.5",
     "pyrefly>=0.57.1",
     "ruff>=0.15.7",
@@ -86,6 +88,9 @@ project_excludes = ["notebooks/"]
 [tool.pytest.ini_options]
 markers = [
     "slow: marks tests as slow (deselect with '-m \"not slow\"')"
+]
+filterwarnings = [
+    "ignore::pandas.errors.Pandas4Warning",
 ]
 
 
