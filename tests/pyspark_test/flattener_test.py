@@ -3,7 +3,7 @@ import json
 import pytest
 from pyspark.sql import SparkSession
 
-from dataflat.pyspark_df.flattener import CustomFlattener
+from dataflat.pyspark.flattener import CustomFlattener
 from dataflat.utils.case_translator import CaseTranslatorOptions
 
 

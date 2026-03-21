@@ -1,4 +1,4 @@
-from dataflat.base.flattener import BaseFlattener
+from dataflat.base_flattener import BaseFlattener
 from dataflat.utils.case_translator import CaseTranslatorOptions
 
 

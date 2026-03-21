@@ -1,5 +1,5 @@
 """
-dataflat/flattener_handler.py - a module handler for dataflat lib
+dataflat/_core.py - Entry point: FlattenerOptions enum, handler function, and FlatteningException.
 
 Copyright (C) 2024 Juan ROJAS
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,29 +18,71 @@ Authors:
 """
 
 import enum
-from importlib import import_module
+from typing import Optional
 
 from typeguard import typechecked
 
-from dataflat.commons import init_logger
+from dataflat.base_flattener import BaseFlattener
 from dataflat.utils.case_translator import CaseTranslatorOptions, CustomCaseTranslator
+from dataflat.utils.logger import init_logger
 
 logger = init_logger(__name__)
+
+
+@typechecked
+class FlatteningException(Exception):
+    """Generic exception raised for errors during the dataflat flattening process.
+
+    Parameters
+    ----------
+    message : str
+        Explanation of the error.
+    """
+
+    def __init__(self, message: str) -> None:
+        self.message = message
+        super().__init__(self.message)
 
 
 class FlattenerOptions(enum.Enum):
     DICTIONARY = 1
     PYSPARK_DF = 2
+    POLARS_DF = 3
+    PYARROW_TABLE = 4
+
+
+def _get_flattener_class(option: FlattenerOptions) -> type[BaseFlattener]:
+    """Return the concrete CustomFlattener class for the given option.
+
+    Imports are deferred so optional dependencies (pyspark, polars, pyarrow)
+    are only loaded when the corresponding flattener is actually requested.
+    """
+    if option == FlattenerOptions.DICTIONARY:
+        from dataflat.dictionary.flattener import CustomFlattener
+
+        return CustomFlattener
+    if option == FlattenerOptions.POLARS_DF:
+        from dataflat.polars.flattener import CustomFlattener
+
+        return CustomFlattener
+    if option == FlattenerOptions.PYARROW_TABLE:
+        from dataflat.pyarrow.flattener import CustomFlattener
+
+        return CustomFlattener
+    # FlattenerOptions.PYSPARK_DF
+    from dataflat.pyspark.flattener import CustomFlattener
+
+    return CustomFlattener
 
 
 @typechecked
 def handler(
     custom_flattener: FlattenerOptions,
-    from_case: CaseTranslatorOptions = None,
-    to_case: CaseTranslatorOptions = None,
+    from_case: Optional[CaseTranslatorOptions] = None,
+    to_case: Optional[CaseTranslatorOptions] = None,
     replace_string: str = ".",
     remove_special_chars: bool = False,
-):
+) -> BaseFlattener:
     """Return the selected flattener class from FlattenerOptions
 
     Parameters
@@ -57,10 +99,8 @@ def handler(
         Remove or not special characters on dataframe or column names
     Returns
     -------
-    BaseFlattener -- Flattener class "
+    BaseFlattener -- Flattener class
     """
-    flattener = "dataflat.{}.flattener".format(custom_flattener.name.lower())
-
     if (from_case is None) or (to_case is None):
         logger.warning(
             "One or both parameters (from_case,to_case) are None, no translation will be applied."
@@ -77,8 +117,12 @@ def handler(
         )
         case_translator = None
     else:
-        case_translator = CustomCaseTranslator(from_case, to_case, remove_special_chars)
+        case_translator = CustomCaseTranslator(
+            from_case=from_case,
+            to_case=to_case,
+            remove_special_chars=remove_special_chars,
+        )
 
-    return getattr(import_module(flattener), "CustomFlattener")(
+    return _get_flattener_class(custom_flattener)(
         case_translator=case_translator, replace_string=replace_string
     )

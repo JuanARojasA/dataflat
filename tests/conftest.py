@@ -1,11 +1,67 @@
 import hashlib
 import os
+import random
+from typing import Any
 
-from pyspark.sql import SparkSession
+import pytest
+import yaml
+from faker import Faker
 from pytest import fixture
-from testcontainers.core.container import DockerContainer
 
 from dataflat.utils.case_translator import CaseTranslatorOptions, CustomCaseTranslator
+
+
+_fake = Faker()
+_SCHEMA_PATH = os.path.join(os.path.dirname(__file__), "resources", "order_schema.yaml")
+
+
+def _generate(node: dict, seq_index: int = 0) -> Any:
+    t = node["type"]
+
+    if t == "faker":
+        method = getattr(_fake, node["method"])
+        result = method(*node.get("args", []), **node.get("kwargs", {}))
+        return (
+            str(result)
+            if hasattr(result, "date") or type(result).__name__ == "Decimal"
+            else result
+        )
+
+    if t == "choice":
+        return random.choice(node["options"])
+
+    if t == "dict":
+        result: dict[str, Any] = {}
+        deferred: dict[str, Any] = {}
+        for key, field in node["fields"].items():
+            if field["type"] == "ref_count":
+                deferred[key] = field
+            else:
+                result[key] = _generate(field, seq_index)
+        for key, field in deferred.items():
+            result[key] = len(result[field["ref"]])
+        return result
+
+    if t == "list":
+        size = random.randint(node["min"], node["max"])
+        return [_generate(node["items"], i) for i in range(size)]
+
+    if t == "nullable":
+        if random.random() < node.get("nullable_chance", 0.5):
+            return None
+        return _generate(node["inner"], seq_index)
+
+    if t == "sequence":
+        return seq_index + 1
+
+    return None
+
+
+@fixture(scope="session")
+def nested_order_data():
+    with open(_SCHEMA_PATH) as f:
+        schema = yaml.safe_load(f)
+    return [_generate(schema) for _ in range(10)]
 
 
 @fixture(scope="function")
@@ -41,7 +97,8 @@ def compare_result():
     def _compare_result(result: str, expected_result_filepath: str):
         result_md5 = hashlib.sha256(result.encode("utf-8")).hexdigest()
         with open(expected_result_filepath, "rb") as f:
-            expected_result_md5 = hashlib.sha256(f.read()).hexdigest()
+            content = f.read().replace(b"\r\n", b"\n")
+            expected_result_md5 = hashlib.sha256(content).hexdigest()
         return result_md5 == expected_result_md5
 
     return _compare_result
@@ -57,14 +114,11 @@ def ignore_null_keys():
 
 @fixture(scope="session")
 def spark():
-    path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "resources")
-    spark_container = (
-        DockerContainer("bitnami/spark:3.5.0")
-        .with_exposed_ports(8080, 7077)
-        .with_volume_mapping(path, path)
-    )
-    with spark_container:
-        spark = (
-            SparkSession.builder.appName("TestClient").master("local[*]").getOrCreate()
-        )
-        yield spark
+    try:
+        from pyspark.sql import SparkSession
+    except ImportError:
+        pytest.skip("PySpark is not installed — skipping PySpark tests")
+
+    spark = SparkSession.builder.appName("TestClient").master("local[*]").getOrCreate()
+    yield spark
+    spark.stop()
