@@ -1,0 +1,446 @@
+type: dict
+fields:
+  batchId:
+    type: faker
+    method: uuid4
+  processedAt:
+    type: faker
+    method: iso8601
+  warehouse:
+    type: dict
+    fields:
+      warehouseId:
+        type: faker
+        method: bothify
+        args: ["wh-##?"]
+      name:
+        type: faker
+        method: company
+      location:
+        type: dict
+        fields:
+          country:
+            type: faker
+            method: country_code
+          state:
+            type: faker
+            method: state_abbr
+          city:
+            type: faker
+            method: city
+          coordinates:
+            type: dict
+            fields:
+              latitude:
+                type: faker
+                method: latitude
+              longitude:
+                type: faker
+                method: longitude
+      zones:
+        type: list
+        min: 0
+        max: 4
+        items:
+          type: dict
+          fields:
+            zoneId:
+              type: faker
+              method: bothify
+              args: ["z-##"]
+            name:
+              type: faker
+              method: word
+            shelves:
+              type: list
+              min: 1
+              max: 3
+              items:
+                type: dict
+                fields:
+                  shelfId:
+                    type: faker
+                    method: bothify
+                    args: ["s-###"]
+                  level:
+                    type: faker
+                    method: random_int
+                    kwargs:
+                      min: 0
+                      max: 5
+                  items:
+                    type: list
+                    min: 0
+                    max: 5
+                    items:
+                      type: dict
+                      fields:
+                        sku:
+                          type: faker
+                          method: bothify
+                          args: ["???-###"]
+                        stock:
+                          type: faker
+                          method: random_int
+                          kwargs:
+                            min: 0
+                            max: 500
+  orders:
+    type: list
+    min: 1
+    max: 5
+    items:
+      type: dict
+      fields:
+        orderId:
+          type: faker
+          method: uuid4
+        date:
+          type: faker
+          method: date
+        status:
+          type: choice
+          options: [pending, completed, cancelled, processing]
+        client:
+          type: dict
+          fields:
+            clientId:
+              type: faker
+              method: uuid4
+            name:
+              type: faker
+              method: name
+            contactInfo:
+              type: dict
+              fields:
+                email:
+                  type: faker
+                  method: email
+                phone:
+                  type: faker
+                  method: phone_number
+            addresses:
+              type: list
+              min: 1
+              max: 3
+              items:
+                type: dict
+                fields:
+                  type:
+                    type: choice
+                    options: [billing, shipping, home, work]
+                  street:
+                    type: faker
+                    method: street_address
+                  city:
+                    type: faker
+                    method: city
+                  state:
+                    type: faker
+                    method: state_abbr
+                  country:
+                    type: faker
+                    method: country_code
+                  postalCode:
+                    type: faker
+                    method: postcode
+                  geoLocation:
+                    type: dict
+                    fields:
+                      latitude:
+                        type: faker
+                        method: latitude
+                      longitude:
+                        type: faker
+                        method: longitude
+            loyaltyProgram:
+              type: dict
+              fields:
+                memberId:
+                  type: faker
+                  method: bothify
+                  args: ["LP-#####"]
+                tier:
+                  type: choice
+                  options: [Bronze, Silver, Gold, Platinum]
+                points:
+                  type: faker
+                  method: random_int
+                  kwargs:
+                    min: 0
+                    max: 100
+                history:
+                  type: list
+                  min: 0
+                  max: 5
+                  items:
+                    type: dict
+                    fields:
+                      date:
+                        type: faker
+                        method: date
+                      points:
+                        type: faker
+                        method: random_int
+                        kwargs:
+                          min: 100
+                          max: 3000
+                      reason:
+                        type: choice
+                        options: [Purchase, Referral, Bonus, Birthday]
+        items:
+          type: list
+          min: 1
+          max: 6
+          items:
+            type: dict
+            fields:
+              itemId:
+                type: faker
+                method: uuid4
+              sku:
+                type: faker
+                method: bothify
+                args: ["???-###"]
+              name:
+                type: faker
+                method: word
+              quantity:
+                type: faker
+                method: random_int
+                kwargs:
+                  min: 1
+                  max: 10
+              price:
+                type: faker
+                method: pyfloat
+                kwargs:
+                  min_value: 1
+                  max_value: 2000
+                  right_digits: 2
+              discount:
+                type: nullable
+                nullable_chance: 0.4
+                inner:
+                  type: dict
+                  fields:
+                    type:
+                      type: choice
+                      options: [percentage, fixed]
+                    value:
+                      type: faker
+                      method: random_int
+                      kwargs:
+                        min: 1
+                        max: 50
+              attributes:
+                type: list
+                min: 1
+                max: 4
+                items:
+                  type: dict
+                  fields:
+                    attributeName:
+                      type: faker
+                      method: word
+                    attributeValue:
+                      type: faker
+                      method: word
+              tags:
+                type: list
+                min: 1
+                max: 5
+                items:
+                  type: faker
+                  method: word
+              reviews:
+                type: list
+                min: 0
+                max: 3
+                items:
+                  type: dict
+                  fields:
+                    reviewId:
+                      type: faker
+                      method: bothify
+                      args: ["rv-###"]
+                    rating:
+                      type: faker
+                      method: random_int
+                      kwargs:
+                        min: 1
+                        max: 5
+                    comment:
+                      type: faker
+                      method: sentence
+                    author:
+                      type: dict
+                      fields:
+                        userId:
+                          type: faker
+                          method: bothify
+                          args: ["u-###"]
+                        name:
+                          type: faker
+                          method: name
+                    helpfulVotes:
+                      type: list
+                      min: 0
+                      max: 5
+                      items:
+                        type: dict
+                        fields:
+                          userId:
+                            type: faker
+                            method: bothify
+                            args: ["u-###"]
+                          vote:
+                            type: choice
+                            options: [up, down]
+        payment:
+          type: dict
+          fields:
+            method:
+              type: choice
+              options: [Credit Card, Debit Card, PayPal, Bank Transfer, Cash]
+            cardLastFour:
+              type: nullable
+              nullable_chance: 0.4
+              inner:
+                type: faker
+                method: numerify
+                args: ["####"]
+            status:
+              type: choice
+              options: [Paid, Pending, Failed, Refunded]
+            transactionId:
+              type: faker
+              method: uuid4
+            billingAddress:
+              type: dict
+              fields:
+                street:
+                  type: faker
+                  method: street_address
+                city:
+                  type: faker
+                  method: city
+                state:
+                  type: faker
+                  method: state_abbr
+                country:
+                  type: faker
+                  method: country_code
+                postalCode:
+                  type: faker
+                  method: postcode
+            installments:
+              type: list
+              min: 0
+              max: 4
+              items:
+                type: dict
+                fields:
+                  installmentNumber:
+                    type: sequence
+                  amount:
+                    type: faker
+                    method: pyfloat
+                    kwargs:
+                      min_value: 50
+                      max_value: 1000
+                      right_digits: 2
+                  dueDate:
+                    type: faker
+                    method: future_date
+                  paid:
+                    type: faker
+                    method: boolean
+        notes:
+          type: list
+          min: 0
+          max: 3
+          items:
+            type: faker
+            method: sentence
+        shipments:
+          type: list
+          min: 0
+          max: 2
+          items:
+            type: dict
+            fields:
+              shipmentId:
+                type: faker
+                method: bothify
+                args: ["shp-###"]
+              carrier:
+                type: choice
+                options: [FedEx, UPS, DHL, USPS, Amazon]
+              trackingNumber:
+                type: faker
+                method: bothify
+                args: ["??#########"]
+              status:
+                type: choice
+                options: [processing, shipped, in_transit, delivered, returned]
+              events:
+                type: list
+                min: 1
+                max: 5
+                items:
+                  type: dict
+                  fields:
+                    timestamp:
+                      type: faker
+                      method: iso8601
+                    location:
+                      type: faker
+                      method: city
+                    description:
+                      type: choice
+                      options:
+                        - Picked up
+                        - In transit
+                        - Out for delivery
+                        - Delivered
+                        - Exception
+  totalOrders:
+    type: ref_count
+    ref: orders
+  summary:
+    type: dict
+    fields:
+      totalRevenue:
+        type: faker
+        method: pyfloat
+        kwargs:
+          min_value: 100
+          max_value: 50000
+          right_digits: 2
+      totalClients:
+        type: faker
+        method: random_int
+        kwargs:
+          min: 1
+          max: 100
+      mostRecentOrderDate:
+        type: faker
+        method: date
+      revenueByCategory:
+        type: dict
+        fields:
+          Electronics:
+            type: faker
+            method: pyfloat
+            kwargs:
+              min_value: 0
+              max_value: 30000
+              right_digits: 2
+          Accessories:
+            type: faker
+            method: pyfloat
+            kwargs:
+              min_value: 0
+              max_value: 5000
+              right_digits: 2

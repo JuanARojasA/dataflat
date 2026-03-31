@@ -270,3 +270,4 @@ cython_debug/
 # local testing with jupyter
 *test.ipynb
 *test.json
+.claude/
