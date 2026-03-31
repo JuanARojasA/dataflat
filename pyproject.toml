@@ -84,8 +84,6 @@ annotated_tag = true
 markers = [
     "slow: marks tests as slow (deselect with '-m \"not slow\"')"
 ]
-filterwarnings = [
-    "ignore::pandas.errors.Pandas4Warning",
-]
+filterwarnings = []
 
 
