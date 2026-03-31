@@ -27,7 +27,7 @@ jobs:
         run: uv sync --group dev
       - name: Run tests and generate coverage report
         run: |
-          uv run coverage run -m pytest
+          uv run coverage run -m pytest -m "not slow"
           uv run coverage xml
       - name: Upload coverage report
         if: matrix.python-version == '3.12'
@@ -35,8 +35,19 @@ jobs:
         with:
           name: coverage-report
           path: coverage.xml
-  sonarcloud:
+  all-tests:
+    name: Testing
+    if: always()
     needs: [tests]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check matrix result
+        run: |
+          if [[ "${{ needs.tests.result }}" == "failure" ]]; then
+            exit 1
+          fi
+  sonarcloud:
+    needs: [all-tests]
     name: SonarCloud
     runs-on: ubuntu-latest
     steps:
