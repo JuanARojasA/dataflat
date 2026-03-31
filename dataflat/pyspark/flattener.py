@@ -124,7 +124,7 @@ class CustomFlattener(BaseFlattener):
             self._heritable_fields[source_table].extend(
                 [
                     field
-                    for field in list(self._flattened_dataframes[source_table].columns)
+                    for field in self._flattened_dataframes[source_table].columns
                     if field.endswith("index")
                 ]
             )
@@ -231,7 +231,7 @@ class CustomFlattener(BaseFlattener):
             f"AS (index, {exploded_field}) FROM `{source_table}`)"
         )
         temp = self.spark.sql(query)
-        heritable_fields = list(temp.columns)
+        heritable_fields = temp.columns
         if explode:
             temp = temp.select("*", f"{exploded_field}.*")
             heritable_fields.remove(exploded_field)
@@ -267,7 +267,7 @@ class CustomFlattener(BaseFlattener):
         data.createOrReplaceTempView(self.entity_name)
         self.__get_nested_struct(data.schema.jsonValue(), self.entity_name, "")
         sorted_dataframes = sorted(
-            list(self._flattened_schemas.keys()), key=lambda k: k.split(".")
+            self._flattened_schemas.keys(), key=lambda k: k.split(".")
         )
 
         for table_name in sorted_dataframes:

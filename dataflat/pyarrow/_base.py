@@ -195,6 +195,49 @@ class _PyArrowBaseFlattener(BaseFlattener):
         return exploded, index_arr
 
     # ------------------------------------------------------------------
+    # List-processing helpers
+    # ------------------------------------------------------------------
+
+    def _join_scalar_list_col(self, table: pa.Table, list_col: str) -> pa.Table:
+        """Replace a scalar-list column with a '|'-joined string column in place."""
+        list_arr = table.column(list_col)
+        if isinstance(list_arr, pa.ChunkedArray):
+            list_arr = list_arr.combine_chunks()
+        joined = pa.array(
+            [
+                "|".join(str(x) for x in row if x is not None) if row is not None else None
+                for row in list_arr.to_pylist()
+            ],
+            type=pa.string(),
+        )
+        col_idx = table.schema.get_field_index(list_col)
+        return table.set_column(col_idx, pa.field(list_col, pa.string()), joined)
+
+    def _build_child_context(
+        self,
+        table: pa.Table,
+        list_col: str,
+        inherited_cols: list[str],
+        is_root: bool,
+        pk: str,
+        entity_name: str,
+    ) -> tuple[pa.Table, list[str]]:
+        """Build the child table and its inherited-column list for a list explosion."""
+        if is_root:
+            rename_map: dict[str, str] = {pk: dot_join_args(entity_name, pk)}
+            for part_key in self.partition_keys:
+                rename_map[part_key] = dot_join_args(entity_name, part_key)
+            child_table = table.select(inherited_cols + [list_col])
+            child_table = _rename_columns(child_table, rename_map)
+            child_pk_cols = [dot_join_args(entity_name, c) for c in inherited_cols]
+        else:
+            own_index_prefixed = dot_join_args(entity_name, "index")
+            child_table = table.select(inherited_cols + ["index", list_col])
+            child_table = _rename_columns(child_table, {"index": own_index_prefixed})
+            child_pk_cols = inherited_cols + [own_index_prefixed]
+        return child_table, child_pk_cols
+
+    # ------------------------------------------------------------------
     # Core recursive processor
     # ------------------------------------------------------------------
 
@@ -243,43 +286,13 @@ class _PyArrowBaseFlattener(BaseFlattener):
 
             if not pa.types.is_struct(inner_type):
                 # Scalar list: join values with "|" into a string column in place.
-                list_arr = table.column(list_col)
-                if isinstance(list_arr, pa.ChunkedArray):
-                    list_arr = list_arr.combine_chunks()
-                joined = pa.array(
-                    [
-                        "|".join(str(x) for x in row if x is not None)
-                        if row is not None
-                        else None
-                        for row in list_arr.to_pylist()
-                    ],
-                    type=pa.string(),
-                )
-                col_idx = table.schema.get_field_index(list_col)
-                table = table.set_column(
-                    col_idx, pa.field(list_col, pa.string()), joined
-                )
+                table = self._join_scalar_list_col(table, list_col)
                 continue
 
             child_name = dot_join_args(entity_name, list_col)
-
-            if is_root:
-                # Rename pk and partition_keys with the entity prefix for children.
-                rename_map: dict[str, str] = {pk: dot_join_args(entity_name, pk)}
-                for part_key in self.partition_keys:
-                    rename_map[part_key] = dot_join_args(entity_name, part_key)
-
-                child_table = table.select(inherited_cols + [list_col])
-                child_table = _rename_columns(child_table, rename_map)
-                child_pk_cols = [dot_join_args(entity_name, c) for c in inherited_cols]
-            else:
-                # Rename own "index" to "entity_name.index" before propagating.
-                own_index_prefixed = dot_join_args(entity_name, "index")
-                child_table = table.select(inherited_cols + ["index", list_col])
-                child_table = _rename_columns(
-                    child_table, {"index": own_index_prefixed}
-                )
-                child_pk_cols = inherited_cols + [own_index_prefixed]
+            child_table, child_pk_cols = self._build_child_context(
+                table, list_col, inherited_cols, is_root, pk, entity_name
+            )
 
             # Explode and compute per-parent positional index.
             child_table, index_arr = self._explode(child_table, list_col, inner_type)
