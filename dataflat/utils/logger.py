@@ -1,7 +1,7 @@
 """
-dataflat/exceptions.py - an exception classes script
+dataflat/utils/logger.py - Logging initialisation helper
 
-Copyright (C) 2023 Juan ROJAS
+Copyright (C) 2024 Juan ROJAS
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
@@ -16,18 +16,19 @@ limitations under the License.
 Authors:
     Juan ROJAS <jarojasa97@gmail.com>
 """
-from typeguard import typechecked
+
+import logging
+from logging import Logger
+from typing import Optional
+
+from pydantic import validate_call
 
 
-@typechecked
-class FlatteningException(Exception):
-    """Exception raised for errors during the dictionary flattening process.
-
-        Parameters
-        ----------
-        message : str
-            Explanation of the error.
-    """
-    def __init__(self, message: str):
-        self.message = message
-        super().__init__(self.message)
+@validate_call
+def init_logger(file_name: str, log_level: Optional[str] = None) -> Logger:
+    if not log_level:
+        log_level = "INFO"
+    logging.basicConfig()
+    logger = logging.getLogger(file_name)
+    logger.setLevel(getattr(logging, log_level))
+    return logger

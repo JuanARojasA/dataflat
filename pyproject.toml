@@ -1,12 +1,14 @@
 [project]
 name = "dataflat"
-version = "2.0.0"
+version = "3.0.0"
 description = "A library to flatten nested data."
 authors = [
   {name = "Juan Rojas", email = "jarojasa97@gmail.com"},
 ]
 requires-python = ">= 3.10"
-dependencies = ["typeguard==4.3.0"]
+dependencies = [
+    "pydantic>=2.12.5",
+]
 keywords = ["flattening", "nested", "data", "pyspark"]
 classifiers=[
     'Development Status :: 5 - Production/Stable',
@@ -16,10 +18,10 @@ classifiers=[
     'License :: OSI Approved :: Apache Software License',
     'Natural Language :: English',
     'Operating System :: OS Independent',
-    'Programming Language :: Python :: 3',
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     'Topic :: Scientific/Engineering',
     'Topic :: Software Development :: Libraries',
     'Topic :: Software Development :: Libraries :: Python Modules',
@@ -34,14 +36,39 @@ Repository = "https://github.com/JuanARojasA/dataflat.git"
 Issues = "https://github.com/JuanARojasA/dataflat/issues"
 Changelog = "https://github.com/JuanARojasA/dataflat/blob/master/CHANGELOG.md"
 
-[project.optional-dependencies]
-test = [
-    "coverage==7.6.1",
-    "pytest==8.3.2",
-    "numpy==1.26.4",
-    "pandas==2.0.3",
-    "pyspark==3.5.0",
-    "testcontainers==4.8.0"
+[dependency-groups]
+dev = [
+    { include-group = "pandas" },
+    { include-group = "polars" },
+    { include-group = "pyarrow" },
+    { include-group = "pyspark"},
+    { include-group = "lint" },
+    "coverage>=7.13.5",
+    "faker>=40.11.0",
+    "pytest>=8.3.2",
+    "pyyaml>=6.0.3",
+    "testcontainers>=4.8.0",
+]
+lint = [
+    "pandas-stubs>=2.3.3.260113",
+    "pyarrow-stubs==20.0.0.20251215",
+    "pylint>=4.0.5",
+    "pyrefly>=0.57.1",
+    "ruff>=0.15.7",
+]
+pandas = [
+    "numpy>=2.2.6",
+    "pandas>=2.3.3",
+    "pyarrow>=23.0.1",
+]
+polars = [
+    "polars>=1.39.3",
+]
+pyarrow = [
+    "pyarrow>=23.0.1",
+]
+pyspark = [
+    "pyspark>=3.5.0",
 ]
 
 [tool.commitizen]
@@ -57,3 +84,6 @@ annotated_tag = true
 markers = [
     "slow: marks tests as slow (deselect with '-m \"not slow\"')"
 ]
+filterwarnings = []
+
+
