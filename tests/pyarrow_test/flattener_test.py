@@ -5,6 +5,7 @@ import json
 import pyarrow as pa
 import pyarrow.json as pa_json
 import pytest
+from pydantic import ValidationError
 
 from dataflat.pyarrow.flattener import CustomFlattener
 from dataflat.utils.case_translator import CaseTranslatorOptions
@@ -43,6 +44,12 @@ def test_flattener():
     assert base.case_translator is None
     assert base.entity_name == "data"
     assert base.primary_key is None
+
+
+def test_flatten_invalid_type():
+    flattener = CustomFlattener()
+    with pytest.raises(ValidationError):
+        flattener.flatten("not_a_table")  # type: ignore[arg-type]
 
 
 def test_flatten_camel_to_snake(get_custom_flattener, get_full_path, compare_result):

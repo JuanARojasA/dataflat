@@ -104,14 +104,20 @@ flatten_data = flattener.flatten(
 
 **Return value**
 
-`flatten()` returns `dict[str, entity]` — one key per entity, named by dot-joined path:
+`flatten()` returns `dict[str, entity]` — one key per entity, named by dot-joined path.
+
+Nested fields are handled as follows:
+
+- **Struct / object fields** are expanded inline using dot-notation (`payment.method`, `client.address.city`).
+- **Lists of objects** produce a child entity (e.g. `data.orders.products`) with a positional `index` column (0-based, per-parent).
+- **Lists of scalars** (strings, ints, floats, booleans) are joined with `"|"` into a single string column in the parent entity — no child entity is created.
 
 ```json
 {
-  "data": [{"id": 1, "date": "2024-01-01", "total": 1900}],
+  "data": [{"id": 1, "date": "2024-01-01", "tags": "featured|sale", "total": 1900}],
   "data.orders": [
-    {"id": "abc123", "total": 700, "data.id": 1, "data.date": "2024-01-01", "index": 0},
-    {"id": "dfg456", "total": 1200, "data.id": 1, "data.date": "2024-01-01", "index": 1}
+    {"id": "abc123", "total": 700, "notes": "fragile|urgent", "data.id": 1, "data.date": "2024-01-01", "index": 0},
+    {"id": "dfg456", "total": 1200, "notes": "gift", "data.id": 1, "data.date": "2024-01-01", "index": 1}
   ],
   "data.orders.products": [
     {"id": "ab", "price": 200, "data.id": 1, "data.date": "2024-01-01", "data.orders.index": 0, "index": 0},

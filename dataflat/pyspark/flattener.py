@@ -21,8 +21,8 @@ import re
 from collections import defaultdict
 from typing import Any, Optional
 
+from pydantic import ConfigDict, validate_call
 from pyspark.sql import DataFrame, SparkSession
-from typeguard import typechecked
 
 from dataflat.base_flattener import BaseFlattener
 from dataflat._core import FlatteningException
@@ -45,7 +45,6 @@ def _split_field_if_special_char(field: str) -> str:
 logger = init_logger(__name__)
 
 
-@typechecked
 class CustomFlattener(BaseFlattener):
     logger.info("CustomFlattener for PySpark Dataframes has been initiated")
     spark: SparkSession
@@ -68,6 +67,7 @@ class CustomFlattener(BaseFlattener):
         self._flattened_schemas: dict[str, list[str]] = {}
         self._relations: dict[str, str] = {}
         self._heritable_fields: defaultdict[str, list] = defaultdict(list)
+        self._scalar_array_fields: defaultdict[str, list] = defaultdict(list)
         self._flattened_dataframes: dict[str, DataFrame] = {}
 
     # ------------------------------------------------------------------
@@ -95,8 +95,16 @@ class CustomFlattener(BaseFlattener):
     ) -> str:
         def get_columns() -> str:
             columns = []
+            scalar_arr_fields = self._scalar_array_fields[table_name]
             for field in self._flattened_schemas[table_name]:
-                if "." in field:
+                if field in scalar_arr_fields:
+                    col_ref = (
+                        _split_field_if_special_char(field)
+                        if "." in field
+                        else _add_backticks_if_special_char(field)
+                    )
+                    columns.append(f"ARRAY_JOIN({col_ref}, '|') AS `{field}`")
+                elif "." in field:
                     columns.append(
                         f"{_split_field_if_special_char(field)} AS `{field}`"
                     )
@@ -146,21 +154,21 @@ class CustomFlattener(BaseFlattener):
                         nested_field, df_name, dot_join_args(schema_ref, field["name"])
                     )
                 elif nested_field["type"] == "array":
-                    self._relations[
-                        dot_join_args(df_name, schema_ref, field["name"])
-                    ] = df_name
                     fixed_field_name = dot_join_args("", schema_ref, field["name"])
                     selected_fields.append(fixed_field_name)
                     if isinstance(nested_field["elementType"], dict):
+                        self._relations[
+                            dot_join_args(df_name, schema_ref, field["name"])
+                        ] = df_name
                         self.__get_nested_struct(
                             nested_field["elementType"],
                             dot_join_args(df_name, schema_ref, field["name"]),
                             "",
                         )
                     else:
-                        self._flattened_schemas[
-                            dot_join_args(df_name, schema_ref, field["name"])
-                        ] = []
+                        # Scalar array: join with "|" in parent entity instead of
+                        # creating a separate child table.
+                        self._scalar_array_fields[df_name].append(fixed_field_name)
                 else:
                     raise FlatteningException(
                         f"{nested_field['type']} is not supported, field {field['name']} will not be processed."
@@ -235,6 +243,7 @@ class CustomFlattener(BaseFlattener):
     # Public API
     # ------------------------------------------------------------------
 
+    @validate_call(config=ConfigDict(arbitrary_types_allowed=True))
     def flatten(
         self,
         data: DataFrame,

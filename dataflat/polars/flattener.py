@@ -21,6 +21,7 @@ import uuid
 from typing import Optional, cast
 
 import polars as pl
+from pydantic import ConfigDict, validate_call
 
 from dataflat.base_flattener import BaseFlattener
 from dataflat.utils.logger import init_logger
@@ -145,8 +146,18 @@ class CustomFlattener(BaseFlattener):
 
         # 3. For each list column, build a child DataFrame and recurse.
         for list_col in list_cols:
-            child_name = dot_join_args(entity_name, list_col)
             inner_dtype = cast(pl.List, df.schema[list_col]).inner
+
+            if not isinstance(inner_dtype, pl.Struct):
+                # Scalar list: join values with "|" into a string column in place.
+                df = df.with_columns(
+                    pl.col(list_col)
+                    .cast(pl.List(pl.String))
+                    .list.join("|", ignore_nulls=True)
+                )
+                continue
+
+            child_name = dot_join_args(entity_name, list_col)
 
             if is_root:
                 # Rename pk and partition_keys with the entity prefix for children.
@@ -213,6 +224,7 @@ class CustomFlattener(BaseFlattener):
     # Public API
     # ------------------------------------------------------------------
 
+    @validate_call(config=ConfigDict(arbitrary_types_allowed=True))
     def flatten(
         self,
         data: pl.DataFrame,

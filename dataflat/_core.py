@@ -20,7 +20,7 @@ Authors:
 import enum
 from typing import Optional
 
-from typeguard import typechecked
+from pydantic import validate_call
 
 from dataflat.base_flattener import BaseFlattener
 from dataflat.utils.case_translator import CaseTranslatorOptions, CustomCaseTranslator
@@ -29,7 +29,6 @@ from dataflat.utils.logger import init_logger
 logger = init_logger(__name__)
 
 
-@typechecked
 class FlatteningException(Exception):
     """Generic exception raised for errors during the dataflat flattening process.
 
@@ -80,7 +79,7 @@ def _get_flattener_class(option: FlattenerOptions) -> type[BaseFlattener]:
     return CustomFlattener
 
 
-@typechecked
+@validate_call
 def handler(
     custom_flattener: FlattenerOptions,
     from_case: Optional[CaseTranslatorOptions] = None,

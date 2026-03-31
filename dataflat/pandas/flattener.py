@@ -23,6 +23,7 @@ from typing import Optional
 
 import pandas as pd
 import pyarrow as pa
+from pydantic import ConfigDict, validate_call
 
 from dataflat.pyarrow._base import _PyArrowBaseFlattener
 from dataflat.utils.logger import init_logger
@@ -34,6 +35,7 @@ logger = init_logger(__name__)
 class CustomFlattener(_PyArrowBaseFlattener):
     logger.info("CustomFlattener for Pandas DataFrames has been initiated")
 
+    @validate_call(config=ConfigDict(arbitrary_types_allowed=True))
     def flatten(
         self,
         data: pd.DataFrame,

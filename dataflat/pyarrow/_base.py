@@ -239,8 +239,29 @@ class _PyArrowBaseFlattener(BaseFlattener):
 
         # 3. For each list column, build a child Table and recurse.
         for list_col in list_cols:
-            child_name = dot_join_args(entity_name, list_col)
             inner_type = table.schema.field(list_col).type.value_type
+
+            if not pa.types.is_struct(inner_type):
+                # Scalar list: join values with "|" into a string column in place.
+                list_arr = table.column(list_col)
+                if isinstance(list_arr, pa.ChunkedArray):
+                    list_arr = list_arr.combine_chunks()
+                joined = pa.array(
+                    [
+                        "|".join(str(x) for x in row if x is not None)
+                        if row is not None
+                        else None
+                        for row in list_arr.to_pylist()
+                    ],
+                    type=pa.string(),
+                )
+                col_idx = table.schema.get_field_index(list_col)
+                table = table.set_column(
+                    col_idx, pa.field(list_col, pa.string()), joined
+                )
+                continue
+
+            child_name = dot_join_args(entity_name, list_col)
 
             if is_root:
                 # Rename pk and partition_keys with the entity prefix for children.

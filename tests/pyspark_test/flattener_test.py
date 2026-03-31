@@ -1,6 +1,7 @@
 import json
 
 import pytest
+from pydantic import ValidationError
 from pyspark.sql import SparkSession
 
 from dataflat.pyspark.flattener import CustomFlattener
@@ -13,6 +14,13 @@ def test_flattener():
     assert base.case_translator is None
     assert base.entity_name == "data"
     assert base.primary_key is None
+
+
+@pytest.mark.slow
+def test_flatten_invalid_type():
+    flattener = CustomFlattener()
+    with pytest.raises(ValidationError):
+        flattener.flatten("not_a_dataframe")  # type: ignore[arg-type]
 
 
 @pytest.mark.slow

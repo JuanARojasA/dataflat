@@ -22,7 +22,7 @@ import uuid
 from collections import defaultdict
 from typing import Any, Optional
 
-from typeguard import typechecked
+from pydantic import validate_call
 
 from dataflat.base_flattener import BaseFlattener
 from dataflat.utils.logger import init_logger
@@ -31,7 +31,6 @@ from dataflat.utils.string import dot_join_args
 logger = init_logger(__name__)
 
 
-@typechecked
 class CustomFlattener(BaseFlattener):
     logger.info("CustomFlattener for Python Dictionaries has been initiated")
 
@@ -127,11 +126,9 @@ class CustomFlattener(BaseFlattener):
                     "",
                 )
         else:
-            for index, item in enumerate(value):
-                dict_item = {key: item}
-                self.__temp_dict[
-                    dot_join_args(dict_name, schema_ref, key, f"_{str(index)}_")
-                ] = dict_item
+            self.__temp_dict[dict_name][dot_join_args(schema_ref, key)] = "|".join(
+                str(item) for item in value
+            )
 
     def __processor(
         self, dictionary: dict[str, Any], dict_name: str, schema_ref: str
@@ -157,6 +154,7 @@ class CustomFlattener(BaseFlattener):
     # Public API
     # ------------------------------------------------------------------
 
+    @validate_call
     def flatten(
         self,
         data: dict[str, Any],

@@ -21,10 +21,10 @@ import logging
 from logging import Logger
 from typing import Optional
 
-from typeguard import typechecked
+from pydantic import validate_call
 
 
-@typechecked
+@validate_call
 def init_logger(file_name: str, log_level: Optional[str] = None) -> Logger:
     if not log_level:
         log_level = "INFO"
