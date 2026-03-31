@@ -116,7 +116,8 @@ class CustomFlattener(_PyArrowBaseFlattener):
         # Suppress Pandas4Warning: raised by some pandas/PyArrow version combinations
         # when using types_mapper=pd.ArrowDtype; the behaviour is intentional here.
         with warnings.catch_warnings():
-            warnings.filterwarnings("ignore", category=pd.errors.Pandas4Warning)
+            if hasattr(pd.errors, "Pandas4Warning"):
+                warnings.filterwarnings("ignore", category=pd.errors.Pandas4Warning)
             return {
                 name: t.to_pandas(types_mapper=pd.ArrowDtype)
                 for name, t in self._result.items()
