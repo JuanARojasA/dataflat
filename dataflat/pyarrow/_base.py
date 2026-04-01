@@ -29,7 +29,6 @@ from dataflat.utils.string import dot_join_args
 
 
 def _rename_columns(table: pa.Table, rename_map: dict[str, str]) -> pa.Table:
-    """Return a new table with columns renamed according to rename_map."""
     new_names = [rename_map.get(name, name) for name in table.schema.names]
     return table.rename_columns(new_names)
 
@@ -51,12 +50,11 @@ class _PyArrowBaseFlattener(BaseFlattener):
         entity_name: Optional[str] = None,
         partition_keys: Optional[list[str]] = None,
         black_list: Optional[list[str]] = None,
+        white_list: Optional[list[str]] = None,
     ) -> None:
-        self.primary_key = primary_key
-        self.entity_name = entity_name if entity_name else self.entity_name
-        self.partition_keys = partition_keys if partition_keys else []
-        self.black_list = black_list if black_list is not None else []
+        super()._setup(primary_key, entity_name, partition_keys, black_list, white_list)
         self._result: dict[str, pa.Table] = {}
+        self._entity_inherited_columns: dict[str, list[str]] = {}
 
     # ------------------------------------------------------------------
     # Column-name translation helpers
@@ -72,21 +70,26 @@ class _PyArrowBaseFlattener(BaseFlattener):
                 )
             self._result = translated
 
-    # ------------------------------------------------------------------
-    # Black-list helper
-    # ------------------------------------------------------------------
-
-    def _is_blacklisted(self, entity_name: str, col: str) -> bool:
-        return any(
-            dot_join_args(entity_name, col).endswith(item) for item in self.black_list
+    def _apply_white_list(self) -> None:
+        if not self.white_list:
+            return
+        plan = self._compute_white_list_plan(
+            list(self._result.keys()), self._entity_inherited_columns
         )
+        new_result: dict[str, pa.Table] = {}
+        for entity_key, cols in plan.items():
+            table = self._result[entity_key]
+            if cols is not None:
+                keep = [c for c in table.schema.names if c in cols]
+                table = table.select(keep)
+            new_result[entity_key] = table
+        self._result = new_result
 
     # ------------------------------------------------------------------
     # Struct expansion
     # ------------------------------------------------------------------
 
     def _unnest_struct_col(self, table: pa.Table, col: str) -> pa.Table:
-        """Prefix every field of a Struct column with `col.` and unnest it."""
         struct_type = table.schema.field(col).type
         struct_arr = table.column(col)
         col_idx = table.schema.get_field_index(col)
@@ -99,11 +102,6 @@ class _PyArrowBaseFlattener(BaseFlattener):
         return table
 
     def _expand_structs(self, table: pa.Table, entity_name: str) -> pa.Table:
-        """Repeatedly expand all top-level Struct columns until none remain.
-
-        Blacklisted struct columns are dropped instead of expanded so their
-        child fields never appear in the output.
-        """
         while True:
             struct_cols = [
                 name
@@ -130,12 +128,6 @@ class _PyArrowBaseFlattener(BaseFlattener):
         col: str,
         inner_type: pa.DataType,
     ) -> tuple[pa.Table, pa.Array]:
-        """Explode a list column into one row per element.
-
-        Returns the exploded table (with the list column replaced by its
-        elements) and a per-parent positional index Array (0-based, resets
-        for each parent row).  Null list rows and null elements are dropped.
-        """
         list_arr = table.column(col)
         if isinstance(list_arr, pa.ChunkedArray):
             list_arr = list_arr.combine_chunks()
@@ -199,13 +191,14 @@ class _PyArrowBaseFlattener(BaseFlattener):
     # ------------------------------------------------------------------
 
     def _join_scalar_list_col(self, table: pa.Table, list_col: str) -> pa.Table:
-        """Replace a scalar-list column with a '|'-joined string column in place."""
         list_arr = table.column(list_col)
         if isinstance(list_arr, pa.ChunkedArray):
             list_arr = list_arr.combine_chunks()
         joined = pa.array(
             [
-                "|".join(str(x) for x in row if x is not None) if row is not None else None
+                "|".join(str(x) for x in row if x is not None)
+                if row is not None
+                else None
                 for row in list_arr.to_pylist()
             ],
             type=pa.string(),
@@ -222,7 +215,6 @@ class _PyArrowBaseFlattener(BaseFlattener):
         pk: str,
         entity_name: str,
     ) -> tuple[pa.Table, list[str]]:
-        """Build the child table and its inherited-column list for a list explosion."""
         if is_root:
             rename_map: dict[str, str] = {pk: dot_join_args(entity_name, pk)}
             for part_key in self.partition_keys:
@@ -248,26 +240,14 @@ class _PyArrowBaseFlattener(BaseFlattener):
         inherited_cols: list[str],
         is_root: bool = False,
     ) -> None:
-        """Expand structs, extract every List column as a child Table, recurse.
-
-        Parameters
-        ----------
-        table:
-            The Table to process at this level of the hierarchy.
-        entity_name:
-            Dot-joined path that identifies this entity, e.g. ``data.orders.items``.
-        inherited_cols:
-            For the root entity: the raw pk/partition-key column names.
-            For non-root entities: the already-prefixed ancestor key columns.
-            These are selected and propagated into every child Table.
-        is_root:
-            True only for the root call.  The root's inherited columns have
-            raw names (``id``, ``date``) that must be renamed with the entity
-            prefix (``data.id``, ``data.date``) when building child Tables.
-        """
         # primary_key is always set to a non-None string before _process_table is called.
         assert self.primary_key is not None
         pk = self.primary_key
+
+        # Track inherited columns for white_list support.
+        self._entity_inherited_columns[entity_name] = (
+            list(inherited_cols) if is_root else list(inherited_cols) + ["index"]
+        )
 
         # 1. Expand every Struct column in-place (with dot-prefixed field names).
         table = self._expand_structs(table, entity_name)

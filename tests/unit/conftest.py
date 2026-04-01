@@ -1,4 +1,5 @@
 import hashlib
+import json
 import os
 import random
 from typing import Any
@@ -11,8 +12,33 @@ from pytest import fixture
 from dataflat.utils.case_translator import CaseTranslatorOptions, CustomCaseTranslator
 
 
+def _records_to_ndjson(records: list[dict]) -> str:
+    """Serialise a list of records to a sorted, null-free NDJSON string."""
+    return "\n".join(
+        json.dumps(
+            {k: v for k, v in sorted(row.items()) if v is not None},
+            separators=(",", ":"),
+        )
+        for row in records
+    )
+
+
+def _records_to_ndjson_pandas(records: list[dict]) -> str:
+    import pandas as pd
+
+    return "\n".join(
+        json.dumps(
+            {k: v for k, v in sorted(row.items()) if v is not None and v is not pd.NA},
+            separators=(",", ":"),
+        )
+        for row in records
+    )
+
+
 _fake = Faker()
-_SCHEMA_PATH = os.path.join(os.path.dirname(__file__), "resources", "order_schema.yaml")
+_SCHEMA_PATH = os.path.join(
+    os.path.dirname(__file__), "../resources", "order_schema.yaml"
+)
 
 
 def _generate(node: dict, seq_index: int = 0) -> Any:
@@ -85,7 +111,7 @@ def get_custom_flattener():
 def get_full_path():
     def _get_full_path(case: str, entity: str) -> str:
         file_path = os.path.join(
-            os.path.dirname(__file__), "resources", case, f"{entity}.json"
+            os.path.dirname(__file__), "../resources", case, f"{entity}.json"
         )
         return file_path
 

@@ -1,4 +1,3 @@
-# pylint: disable=duplicate-code
 import io
 import json
 
@@ -9,6 +8,7 @@ from pydantic import ValidationError
 
 from dataflat.pyarrow.flattener import CustomFlattener
 from dataflat.utils.case_translator import CaseTranslatorOptions
+from tests.unit.conftest import _records_to_ndjson
 
 
 def _table_from_json_path(path: str) -> pa.Table:
@@ -28,15 +28,7 @@ def _table_from_dicts(records: list[dict]) -> pa.Table:
 
 def _entity_to_string(table: pa.Table) -> str:
     """Serialise a PyArrow Table to a sorted, null-free NDJSON string."""
-    sorted_cols = sorted(table.schema.names)
-    rows = table.select(sorted_cols).to_pylist()
-    return "\n".join(
-        json.dumps(
-            {k: v for k, v in sorted(row.items()) if v is not None},
-            separators=(",", ":"),
-        )
-        for row in rows
-    )
+    return _records_to_ndjson(table.select(sorted(table.schema.names)).to_pylist())
 
 
 def test_flattener():

@@ -22,6 +22,7 @@ from dataclasses import dataclass, field
 from typing import Any, Optional
 
 from dataflat.utils.case_translator import CaseTranslatorOptions, CustomCaseTranslator
+from dataflat.utils.string import dot_join_args
 
 
 @dataclass
@@ -31,10 +32,10 @@ class BaseFlattener(ABC):
     primary_key: Optional[str] = None
     partition_keys: list[str] = field(default_factory=list)
     black_list: list[str] = field(default_factory=list)
+    white_list: list[str] = field(default_factory=list)
 
     @property
     def _dataflat_id_col_name(self) -> str:
-        """Return the auto-generated primary-key column name based on to_case."""
         if self.case_translator is None:
             return "dataflat_id_column"
         to_case = self.case_translator.to_case
@@ -50,8 +51,26 @@ class BaseFlattener(ABC):
             return "dataflatidcolumn"
         return "dataflat_id_column"  # SNAKE or unknown
 
+    def _setup(
+        self,
+        primary_key: Optional[str] = None,
+        entity_name: Optional[str] = None,
+        partition_keys: Optional[list[str]] = None,
+        black_list: Optional[list[str]] = None,
+        white_list: Optional[list[str]] = None,
+    ) -> None:
+        self.primary_key = primary_key
+        self.entity_name = entity_name if entity_name else self.entity_name
+        self.partition_keys = partition_keys if partition_keys is not None else []
+        self.black_list = black_list if black_list is not None else []
+        self.white_list = white_list if white_list is not None else []
+
+    def _is_blacklisted(self, entity_name: str, col: str) -> bool:
+        return any(
+            dot_join_args(entity_name, col).endswith(item) for item in self.black_list
+        )
+
     def _process_strings(self, string: str) -> str:
-        """Translate case in a dot-joined key string. Separator is always '.'."""
         if self.case_translator is not None:
             return ".".join(
                 self.case_translator.translate(sub_string)
@@ -60,6 +79,48 @@ class BaseFlattener(ABC):
             )
         return string
 
+    def _compute_white_list_plan(
+        self,
+        result_keys: list[str],
+        entity_inherited_columns: dict[str, list[str]],
+    ) -> dict[str, Optional[set[str]]]:
+        if not self.white_list:
+            return {k: None for k in result_keys}
+
+        plan: dict[str, Optional[set[str]]] = {}
+
+        for wl in self.white_list:
+            full_wl = f"{self.entity_name}.{wl}"
+
+            if full_wl in result_keys:
+                # Entity-level: retain full_wl and every descendant.
+                for key in result_keys:
+                    if key == full_wl or key.startswith(full_wl + "."):
+                        plan[key] = (
+                            None  # entity-level overrides any column-level entry
+                        )
+            else:
+                # Column-level: find the longest entity key that is a prefix of full_wl.
+                parent_entity = max(
+                    (key for key in result_keys if full_wl.startswith(key + ".")),
+                    key=len,
+                    default=None,
+                )
+                if parent_entity is not None:
+                    col_name = full_wl[len(parent_entity) + 1 :]
+                    inherited = entity_inherited_columns.get(parent_entity, [])
+                    if parent_entity not in plan:
+                        plan[parent_entity] = set(inherited) | {col_name}
+                    elif (existing := plan[parent_entity]) is not None:
+                        existing.add(col_name)
+                    # If plan[parent_entity] is None (entity-level), leave it as None.
+
+        return plan
+
+    def _apply_white_list(self) -> None: ...
+
+    def _apply_column_translate(self) -> None: ...
+
     def flatten(
         self,
         data: Any,
@@ -67,5 +128,6 @@ class BaseFlattener(ABC):
         entity_name: Optional[str] = None,
         partition_keys: Optional[list[str]] = None,
         black_list: Optional[list[str]] = None,
+        white_list: Optional[list[str]] = None,
     ) -> Any:
         return None

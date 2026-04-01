@@ -1,3 +1,34 @@
+## v3.1.0 (2026-03-31)
+
+### Refactor
+
+- **BaseFlattener**: consolidated `_setup()` common field assignments (`primary_key`, `entity_name`, `partition_keys`, `black_list`, `white_list`) into `BaseFlattener._setup()`; all five subclass `_setup()` methods call `super()._setup(...)` and add only backend-specific state.
+- **BaseFlattener**: promoted `_is_blacklisted()` from `_PyArrowBaseFlattener` and Polars to `BaseFlattener`; Dictionary and PySpark inline blacklist checks updated to use it.
+- **BaseFlattener**: added `_apply_white_list()` and `_apply_column_translate()` no-op stubs to enforce the contract for future backends.
+- **BaseFlattener**: `partition_keys is not None` guard replaces the falsy `if partition_keys else` check in `_setup()`.
+- **naming**: standardised private method naming from `__` (name-mangled) to `_` (single-underscore) across Polars, Dictionary, and PySpark flatteners for consistency with the PyArrow base.
+- **PySpark**: replaced post-hoc `_build_entity_inherited_columns()` inference with direct tracking of `_entity_inherited_columns` during the `flatten()` traversal loop, matching the approach of the other four backends.
+- **logging**: removed class-body `logger.info(...)` from all five `CustomFlattener` classes (which fired at import time); a single `logger.info(f"CustomFlattener for {option.name} has been initiated")` is now emitted in `handler()` so only the requested backend is logged (e.g. using `PANDAS_DF` no longer also logs a PyArrow message).
+- **validate_call**: extracted `_FLATTEN_CONFIG = ConfigDict(arbitrary_types_allowed=True)` as a module-level constant in each DataFrame flattener (PyArrow, Pandas, Polars, PySpark).
+- **tests**: extracted shared NDJSON serialization helpers (`_records_to_ndjson`, `_records_to_ndjson_pandas`) to `tests/unit/conftest.py`; `_entity_to_string` in PyArrow, Polars, and Pandas test files delegates to them.
+- **tests**: removed stale `# pylint: disable=duplicate-code` suppression comments from all test files (no duplicate code remains after helper extraction).
+
+### Feat
+
+- **white_list**: new `white_list` parameter on all five `CustomFlattener.flatten()` methods (Dictionary, PyArrow, Pandas, Polars, PySpark). Filters the flattened output after all unnesting and before case translation.
+  - **Entity-level**: `white_list=["orders.items"]` retains `data.orders.items` and all its descendants (`data.orders.items.*`) with every column intact.
+  - **Column-level**: `white_list=["orders.items.name"]` retains the parent entity (`data.orders.items`) narrowed to inherited join columns (pk, partition keys, index columns) plus the specified column; all child entities of that parent are dropped.
+  - Multiple entries are additive: `["orders.items.name", "orders.items.price"]` keeps both columns in the same entity.
+  - Entity-level entries override column-level entries for the same entity.
+  - `entity_name` (default `"data"`) is automatically prepended, so entries are relative paths (e.g. `"orders.items"` not `"data.orders.items"`).
+  - Inherited join columns (primary key, partition keys, index columns) are always preserved, even under column-level filtering.
+- **pyproject.toml**: added `pandas`, `polars`, `pyarrow` to project `keywords`.
+
+### Tests
+
+- **white_list**: added `white_list_test.py` to each of the five flattener test suites (`dicitonary_test`, `pyarrow_test`, `pandas_test`, `polars_test`, `pyspark_test`) covering entity-level multi-branch and column-level multi-column scenarios.
+- **resources**: added `tests/resources/white_list/` with golden NDJSON files for column-level filter assertions.
+
 ## v3.0.0 (2026-03-30)
 
 ### BREAKING CHANGE
