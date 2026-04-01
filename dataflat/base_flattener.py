@@ -79,42 +79,53 @@ class BaseFlattener(ABC):
             )
         return string
 
+    def _add_entity_level_entry(
+        self,
+        full_wl: str,
+        result_keys: list[str],
+        plan: dict[str, Optional[set[str]]],
+    ) -> None:
+        for key in result_keys:
+            if key == full_wl or key.startswith(full_wl + "."):
+                plan[key] = None  # entity-level overrides any column-level entry
+
+    def _add_column_level_entry(
+        self,
+        full_wl: str,
+        result_keys: list[str],
+        entity_inherited_columns: dict[str, list[str]],
+        plan: dict[str, Optional[set[str]]],
+    ) -> None:
+        parent_entity = max(
+            (key for key in result_keys if full_wl.startswith(key + ".")),
+            key=len,
+            default=None,
+        )
+        if parent_entity is None:
+            return
+        col_name = full_wl[len(parent_entity) + 1 :]
+        inherited = entity_inherited_columns.get(parent_entity, [])
+        if parent_entity not in plan:
+            plan[parent_entity] = set(inherited) | {col_name}
+        elif (existing := plan[parent_entity]) is not None:
+            existing.add(col_name)
+        # If plan[parent_entity] is None (entity-level), leave it as None.
+
     def _compute_white_list_plan(
         self,
         result_keys: list[str],
         entity_inherited_columns: dict[str, list[str]],
     ) -> dict[str, Optional[set[str]]]:
         if not self.white_list:
-            return {k: None for k in result_keys}
+            return dict.fromkeys(result_keys)
 
         plan: dict[str, Optional[set[str]]] = {}
-
         for wl in self.white_list:
             full_wl = f"{self.entity_name}.{wl}"
-
             if full_wl in result_keys:
-                # Entity-level: retain full_wl and every descendant.
-                for key in result_keys:
-                    if key == full_wl or key.startswith(full_wl + "."):
-                        plan[key] = (
-                            None  # entity-level overrides any column-level entry
-                        )
+                self._add_entity_level_entry(full_wl, result_keys, plan)
             else:
-                # Column-level: find the longest entity key that is a prefix of full_wl.
-                parent_entity = max(
-                    (key for key in result_keys if full_wl.startswith(key + ".")),
-                    key=len,
-                    default=None,
-                )
-                if parent_entity is not None:
-                    col_name = full_wl[len(parent_entity) + 1 :]
-                    inherited = entity_inherited_columns.get(parent_entity, [])
-                    if parent_entity not in plan:
-                        plan[parent_entity] = set(inherited) | {col_name}
-                    elif (existing := plan[parent_entity]) is not None:
-                        existing.add(col_name)
-                    # If plan[parent_entity] is None (entity-level), leave it as None.
-
+                self._add_column_level_entry(full_wl, result_keys, entity_inherited_columns, plan)
         return plan
 
     def _apply_white_list(self) -> None: ...
