@@ -29,11 +29,11 @@ from dataflat.utils.logger import init_logger
 
 logger = init_logger(__name__)
 
+_FLATTEN_CONFIG = ConfigDict(arbitrary_types_allowed=True)
+
 
 class CustomFlattener(_PyArrowBaseFlattener):
-    logger.info("CustomFlattener for PyArrow Tables has been initiated")
-
-    @validate_call(config=ConfigDict(arbitrary_types_allowed=True))
+    @validate_call(config=_FLATTEN_CONFIG)
     def flatten(
         self,
         data: pa.Table,
@@ -41,6 +41,7 @@ class CustomFlattener(_PyArrowBaseFlattener):
         entity_name: Optional[str] = None,
         partition_keys: Optional[list[str]] = None,
         black_list: Optional[list[str]] = None,
+        white_list: Optional[list[str]] = None,
     ) -> dict[str, pa.Table]:
         """Flatten a PyArrow Table that may contain Struct and List columns.
 
@@ -59,6 +60,13 @@ class CustomFlattener(_PyArrowBaseFlattener):
         black_list:
             Dot-separated field paths whose values should be excluded from all
             output Tables, e.g. ``["totalOrders", "summary.totalClients"]``.
+        white_list:
+            Dot-separated paths that select which entities and/or columns to
+            retain after flattening, e.g. ``["orders.items", "summary.total_revenue"]``.
+            Entity-level entries keep the full entity and all descendants;
+            column-level entries narrow the parent entity to inherited join
+            columns plus the specified column.  An empty list (default) keeps
+            everything.
 
         Returns
         -------
@@ -67,7 +75,7 @@ class CustomFlattener(_PyArrowBaseFlattener):
             Every Table carries the full chain of pk / index columns so
             parent–child relationships can be reconstructed.
         """
-        self._setup(primary_key, entity_name, partition_keys, black_list)
+        self._setup(primary_key, entity_name, partition_keys, black_list, white_list)
 
         # Ensure the root Table has a primary-key column.
         if self.primary_key is None:
@@ -87,5 +95,6 @@ class CustomFlattener(_PyArrowBaseFlattener):
 
         root_inherited = [self.primary_key] + self.partition_keys
         self._process_table(data, self.entity_name, root_inherited, is_root=True)
+        self._apply_white_list()
         self._apply_column_translate()
         return self._result

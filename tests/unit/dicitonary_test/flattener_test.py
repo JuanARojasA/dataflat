@@ -1,4 +1,3 @@
-# pylint: disable=duplicate-code
 import json
 from collections import OrderedDict
 

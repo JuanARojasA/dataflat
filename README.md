@@ -93,6 +93,7 @@ flatten_data = flattener.flatten(
     entity_name="data",                             # root entity name, default "data"
     partition_keys=["date"],                        # columns propagated to all children
     black_list=["keys.to", "be.ignored"],           # fields excluded from output
+    white_list=["orders.items", "orders.items.name"],  # entities/columns to retain (see below)
 )
 ```
 
@@ -101,6 +102,7 @@ flatten_data = flattener.flatten(
 - `primary_key` — identifies each root record; propagated to all child entities as `<entity_name>.<primary_key>` (e.g. `data.id`). When `None` (the default), a UUID column is auto-generated with a name that matches `to_case`: `dataflat_id_column` (SNAKE), `dataflat-id-column` (KEBAB), `dataflatIdColumn` (CAMEL), `DataflatIdColumn` (PASCAL), `Dataflat id column` (HUMAN), `dataflatidcolumn` (LOWER).
 - `partition_keys` — additional root columns (e.g. `["date"]`) inherited by every child entity.
 - `black_list` — dot-joined field paths excluded from all output (e.g. `["summary.totalClients"]`).
+- `white_list` — dot-joined paths that select which entities and/or columns to retain after flattening (see [White list](#white-list)).
 
 **Return value**
 
@@ -153,6 +155,39 @@ Produced from:
   "total": 1900
 }
 ```
+
+### White list
+
+`white_list` filters the flattened output after all unnesting and before case translation. Entries are relative paths — `entity_name` (default `"data"`) is prepended automatically.
+
+**Entity-level** — if the entry matches an existing entity key, that entity and all its descendants are kept with every column:
+
+```python
+results = flattener.flatten(
+    data, primary_key="id", partition_keys=["date"],
+    white_list=["orders.items", "orders.client.addresses"],
+)
+# Keeps: data.orders.items, data.orders.items.attributes, data.orders.client.addresses
+# Drops: data, data.orders, data.orders.client, ...
+```
+
+**Column-level** — if the entry does not match any entity key, the flattener finds the entity whose path is a prefix of the entry, retains that entity narrowed to the specified column plus all inherited join columns (pk, partition keys, index columns), and drops all child entities of it:
+
+```python
+results = flattener.flatten(
+    data, primary_key="id", partition_keys=["date"],
+    white_list=["orders.items.name", "orders.items.price", "summary.total_revenue"],
+)
+# Keeps: data (narrowed to id + date + summary.total_revenue)
+#        data.orders.items (narrowed to data.id + data.date + data.orders.index + index + name + price)
+# Drops: data.orders, data.orders.items.attributes, data.orders.client, ...
+```
+
+**Rules:**
+- Multiple column entries for the same entity are additive.
+- Entity-level overrides column-level for the same entity (full entity is kept).
+- Inherited join columns (pk, partition keys, index columns) are **always** preserved, even under column-level filtering.
+- An empty `white_list` (the default) keeps everything.
 
 ### Recommendations
 

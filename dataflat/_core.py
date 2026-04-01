@@ -124,4 +124,6 @@ def handler(
             remove_special_chars=remove_special_chars,
         )
 
-    return _get_flattener_class(custom_flattener)(case_translator=case_translator)
+    flattener_class = _get_flattener_class(custom_flattener)
+    logger.info(f"CustomFlattener for {custom_flattener.name} has been initiated")
+    return flattener_class(case_translator=case_translator)
