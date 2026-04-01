@@ -30,10 +30,10 @@ from dataflat.utils.string import dot_join_args
 
 logger = init_logger(__name__)
 
+_FLATTEN_CONFIG = ConfigDict(arbitrary_types_allowed=True)
+
 
 class CustomFlattener(BaseFlattener):
-    logger.info("CustomFlattener for Polars DataFrames has been initiated")
-
     # ------------------------------------------------------------------
     # Internal state initialisation
     # ------------------------------------------------------------------
@@ -44,18 +44,17 @@ class CustomFlattener(BaseFlattener):
         entity_name: Optional[str] = None,
         partition_keys: Optional[list[str]] = None,
         black_list: Optional[list[str]] = None,
+        white_list: Optional[list[str]] = None,
     ) -> None:
-        self.primary_key = primary_key
-        self.entity_name = entity_name if entity_name else self.entity_name
-        self.partition_keys = partition_keys if partition_keys else []
-        self.black_list = black_list if black_list is not None else []
+        super()._setup(primary_key, entity_name, partition_keys, black_list, white_list)
         self._result: dict[str, pl.DataFrame] = {}
+        self._entity_inherited_columns: dict[str, list[str]] = {}
 
     # ------------------------------------------------------------------
     # Column-name translation helpers
     # ------------------------------------------------------------------
 
-    def __apply_column_translate(self) -> None:
+    def _apply_column_translate(self) -> None:
         if self.case_translator is not None:
             translated: dict[str, pl.DataFrame] = {}
             for df_name, df in self._result.items():
@@ -63,85 +62,71 @@ class CustomFlattener(BaseFlattener):
                 translated[self._process_strings(df_name)] = df.rename(rename_map)
             self._result = translated
 
-    # ------------------------------------------------------------------
-    # Black-list helper
-    # ------------------------------------------------------------------
-
-    def __is_blacklisted(self, entity_name: str, col: str) -> bool:
-        return any(
-            dot_join_args(entity_name, col).endswith(item) for item in self.black_list
+    def _apply_white_list(self) -> None:
+        if not self.white_list:
+            return
+        plan = self._compute_white_list_plan(
+            list(self._result.keys()), self._entity_inherited_columns
         )
+        new_result: dict[str, pl.DataFrame] = {}
+        for entity_key, cols in plan.items():
+            df = self._result[entity_key]
+            if cols is not None:
+                keep = [c for c in df.columns if c in cols]
+                df = df.select(keep)
+            new_result[entity_key] = df
+        self._result = new_result
 
     # ------------------------------------------------------------------
     # Struct expansion
     # ------------------------------------------------------------------
 
-    def __unnest_struct_col(self, df: pl.DataFrame, col: str) -> pl.DataFrame:
-        """Prefix every field of a Struct column with `col.` then unnest it."""
+    def _unnest_struct_col(self, df: pl.DataFrame, col: str) -> pl.DataFrame:
         new_names = [
             dot_join_args(col, f.name) for f in cast(pl.Struct, df.schema[col]).fields
         ]
         return df.with_columns(pl.col(col).struct.rename_fields(new_names)).unnest(col)
 
-    def __expand_structs(self, df: pl.DataFrame, entity_name: str) -> pl.DataFrame:
-        """Repeatedly expand all top-level Struct columns until none remain.
-
-        Blacklisted struct columns are dropped instead of expanded so their
-        child fields never appear in the output.
-        """
+    def _expand_structs(self, df: pl.DataFrame, entity_name: str) -> pl.DataFrame:
         while True:
             struct_cols = [c for c, t in df.schema.items() if isinstance(t, pl.Struct)]
             if not struct_cols:
                 break
             for col in struct_cols:
-                if self.__is_blacklisted(entity_name, col):
+                if self._is_blacklisted(entity_name, col):
                     df = df.drop(col)
                 else:
-                    df = self.__unnest_struct_col(df, col)
+                    df = self._unnest_struct_col(df, col)
         return df
 
     # ------------------------------------------------------------------
     # Core recursive processor
     # ------------------------------------------------------------------
 
-    def __process_df(
+    def _process_df(
         self,
         df: pl.DataFrame,
         entity_name: str,
         inherited_cols: list[str],
         is_root: bool = False,
     ) -> None:
-        """Expand structs, extract every List column as a child DataFrame, recurse.
-
-        Parameters
-        ----------
-        df:
-            The DataFrame to process at this level of the hierarchy.
-        entity_name:
-            Dot-joined path that identifies this entity, e.g. ``data.orders.items``.
-        inherited_cols:
-            For the root entity: the raw pk/partition-key column names.
-            For non-root entities: the already-prefixed ancestor key columns
-            (e.g. ``["data.id", "data.date", "data.orders.index"]``).
-            These are selected and propagated into every child DataFrame.
-        is_root:
-            True only for the root call.  The root's inherited columns have
-            raw names (``id``, ``date``) that must be renamed with the entity
-            prefix (``data.id``, ``data.date``) when building child DataFrames.
-        """
-        # primary_key is always set to a non-None string before __process_df is called.
+        # primary_key is always set to a non-None string before _process_df is called.
         assert self.primary_key is not None
         pk = self.primary_key
 
+        # Track inherited columns for white_list support.
+        self._entity_inherited_columns[entity_name] = (
+            list(inherited_cols) if is_root else list(inherited_cols) + ["index"]
+        )
+
         # 1. Expand every Struct column in-place (with dot-prefixed field names).
-        df = self.__expand_structs(df, entity_name)
+        df = self._expand_structs(df, entity_name)
 
         # 2. Collect list columns that are not blacklisted.
         list_cols = [
             col
             for col, dtype in df.schema.items()
-            if isinstance(dtype, pl.List)
-            and not self.__is_blacklisted(entity_name, col)
+            if isinstance(dtype, pl.List) and not self._is_blacklisted(entity_name, col)
         ]
 
         # 3. For each list column, build a child DataFrame and recurse.
@@ -196,13 +181,13 @@ class CustomFlattener(BaseFlattener):
             # Expand struct elements; scalar elements keep their original column name.
             # Use plain unnest (no field-name prefixing) so that the struct's own
             # field names are preserved.  Top-level struct columns inside those
-            # fields will be prefixed correctly by __expand_structs when __process_df
+            # fields will be prefixed correctly by _expand_structs when _process_df
             # recurses into the child entity.
             if isinstance(inner_dtype, pl.Struct):
                 child_df = child_df.unnest(list_col)
 
             # Recurse into the child entity.
-            self.__process_df(child_df, child_name, child_pk_cols, is_root=False)
+            self._process_df(child_df, child_name, child_pk_cols, is_root=False)
 
             # Remove the list column from the parent; data lives in the child.
             df = df.drop(list_col)
@@ -212,7 +197,7 @@ class CustomFlattener(BaseFlattener):
         blacklisted_scalars = [
             col
             for col in df.columns
-            if col not in inherited_cols and self.__is_blacklisted(entity_name, col)
+            if col not in inherited_cols and self._is_blacklisted(entity_name, col)
         ]
         if blacklisted_scalars:
             df = df.drop(blacklisted_scalars)
@@ -224,7 +209,7 @@ class CustomFlattener(BaseFlattener):
     # Public API
     # ------------------------------------------------------------------
 
-    @validate_call(config=ConfigDict(arbitrary_types_allowed=True))
+    @validate_call(config=_FLATTEN_CONFIG)
     def flatten(
         self,
         data: pl.DataFrame,
@@ -232,6 +217,7 @@ class CustomFlattener(BaseFlattener):
         entity_name: Optional[str] = None,
         partition_keys: Optional[list[str]] = None,
         black_list: Optional[list[str]] = None,
+        white_list: Optional[list[str]] = None,
     ) -> dict[str, pl.DataFrame]:
         """Flatten a Polars DataFrame that may contain Struct and List columns.
 
@@ -254,6 +240,13 @@ class CustomFlattener(BaseFlattener):
         black_list:
             Dot-separated field paths whose values should be excluded from all
             output DataFrames, e.g. ``["totalOrders", "summary.totalClients"]``.
+        white_list:
+            Dot-separated paths that select which entities and/or columns to
+            retain after flattening, e.g. ``["orders.items", "summary.total_revenue"]``.
+            Entity-level entries keep the full entity and all descendants;
+            column-level entries narrow the parent entity to inherited join
+            columns plus the specified column.  An empty list (default) keeps
+            everything.
 
         Returns
         -------
@@ -262,7 +255,7 @@ class CustomFlattener(BaseFlattener):
             DataFrame.  Every DataFrame carries the full chain of pk / index
             columns so parent–child relationships can be reconstructed.
         """
-        self._setup(primary_key, entity_name, partition_keys, black_list)
+        self._setup(primary_key, entity_name, partition_keys, black_list, white_list)
 
         # Ensure the root DataFrame has a primary-key column.
         if self.primary_key is None:
@@ -275,6 +268,7 @@ class CustomFlattener(BaseFlattener):
             data = data.with_row_index(self.primary_key)
 
         root_inherited = [self.primary_key] + self.partition_keys
-        self.__process_df(data, self.entity_name, root_inherited, is_root=True)
-        self.__apply_column_translate()
+        self._process_df(data, self.entity_name, root_inherited, is_root=True)
+        self._apply_white_list()
+        self._apply_column_translate()
         return self._result

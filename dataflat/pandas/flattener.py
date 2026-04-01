@@ -31,11 +31,11 @@ from dataflat.utils.logger import init_logger
 
 logger = init_logger(__name__)
 
+_FLATTEN_CONFIG = ConfigDict(arbitrary_types_allowed=True)
+
 
 class CustomFlattener(_PyArrowBaseFlattener):
-    logger.info("CustomFlattener for Pandas DataFrames has been initiated")
-
-    @validate_call(config=ConfigDict(arbitrary_types_allowed=True))
+    @validate_call(config=_FLATTEN_CONFIG)
     def flatten(
         self,
         data: pd.DataFrame,
@@ -43,6 +43,7 @@ class CustomFlattener(_PyArrowBaseFlattener):
         entity_name: Optional[str] = None,
         partition_keys: Optional[list[str]] = None,
         black_list: Optional[list[str]] = None,
+        white_list: Optional[list[str]] = None,
     ) -> dict[str, pd.DataFrame]:
         """Flatten a Pandas DataFrame that may contain nested dicts and lists.
 
@@ -68,6 +69,13 @@ class CustomFlattener(_PyArrowBaseFlattener):
         black_list:
             Dot-separated field paths whose values should be excluded from all
             output DataFrames, e.g. ``["totalOrders", "summary.totalClients"]``.
+        white_list:
+            Dot-separated paths that select which entities and/or columns to
+            retain after flattening, e.g. ``["orders.items", "summary.total_revenue"]``.
+            Entity-level entries keep the full entity and all descendants;
+            column-level entries narrow the parent entity to inherited join
+            columns plus the specified column.  An empty list (default) keeps
+            everything.
 
         Returns
         -------
@@ -78,7 +86,7 @@ class CustomFlattener(_PyArrowBaseFlattener):
             Every DataFrame carries the full chain of pk / index columns so
             parent–child relationships can be reconstructed.
         """
-        self._setup(primary_key, entity_name, partition_keys, black_list)
+        self._setup(primary_key, entity_name, partition_keys, black_list, white_list)
 
         # Convert to PyArrow Table: this is the "change dtype_backend to pyarrow"
         # step.  pa.Table.from_pandas correctly infers struct and list types from
@@ -109,6 +117,7 @@ class CustomFlattener(_PyArrowBaseFlattener):
 
         root_inherited = [self.primary_key] + self.partition_keys
         self._process_table(table, self.entity_name, root_inherited, is_root=True)
+        self._apply_white_list()
         self._apply_column_translate()
 
         # Convert each pa.Table result back to a pandas DataFrame backed by

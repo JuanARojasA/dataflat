@@ -104,9 +104,27 @@ Results are converted back to `pd.DataFrame` with `.to_pandas(types_mapper=pd.Ar
 - **Lists of objects (structs)** become separate child entities (dot-joined path, e.g. `data.orders.items`), with a positional `index` column.
 - **Lists of scalars** (strings, ints, floats, booleans) are joined with `"|"` into a single string column in the parent entity (e.g. `tags: ["A","B","C"]` → `tags: "A|B|C"`). No child entity is created.
 
+### White list
+
+`white_list` (list of dot-joined relative paths, default `[]`) filters the flattened output **after all unnesting and before case translation**. `entity_name` is automatically prepended to each entry.
+
+- **Entity-level**: entry matches an existing entity key → that entity and all its descendants are kept with all columns.
+- **Column-level**: entry does not match any entity key → the longest entity key that is a prefix of the entry is found; that entity is kept narrowed to inherited join columns + the specified column; all its child entities are dropped.
+- Multiple column entries for the same entity are additive.
+- Entity-level overrides column-level for the same entity.
+- **Inherited join columns** (primary key, partition keys, index columns) are always preserved under column-level filtering.
+
+`_compute_white_list_plan(result_keys, entity_inherited_columns)` in `BaseFlattener` computes the shared plan (`dict[str, Optional[set[str]]]`: `None` = keep all columns, `set` = keep only those columns). Each flattener calls this from its own `_apply_white_list()` / `__apply_white_list()` method, called after processing and before `_apply_column_translate()`.
+
+Each flattener also maintains `_entity_inherited_columns: dict[str, list[str]]` populated during traversal:
+- Root entity: `[primary_key] + partition_keys`
+- Non-root entities: `inherited_cols_from_parent + ["index"]`
+
+For PySpark, `_entity_inherited_columns` is inferred post-hoc by `__build_entity_inherited_columns()` from the DataFrame column names (columns matching `<entity_name>.<pk>`, `<entity_name>.<partition_key>`, `*.index`, or `"index"`).
+
 ### Shared helpers in `BaseFlattener`
 
-`BaseFlattener` holds shared state defaults: `case_translator`, `entity_name`, `primary_key` (default `None`), `partition_keys`, `black_list`. `_process_strings(string)` is also defined here and used by all subclasses — it applies case translation; the separator is always `"."`. Do **not** redefine it in subclasses.
+`BaseFlattener` holds shared state defaults: `case_translator`, `entity_name`, `primary_key` (default `None`), `partition_keys`, `black_list`, `white_list`. `_process_strings(string)` is also defined here and used by all subclasses — it applies case translation; the separator is always `"."`. Do **not** redefine it in subclasses.
 
 `_dataflat_id_col_name` (property) returns the auto-generated primary-key column name based on `case_translator.to_case`: `dataflat_id_column` (SNAKE/default), `dataflat-id-column` (KEBAB), `dataflatIdColumn` (CAMEL), `DataflatIdColumn` (PASCAL), `Dataflat id column` (HUMAN), `dataflatidcolumn` (LOWER).
 
